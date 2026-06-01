@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  EMPLOYEE
+}
+
+enum ProofStatus {
+  PENDING
+  IN_PROGRESS
+  SLAUGHTERED
+  MEDIA_UPLOADED
+  READY
+  VIEWED
+  CANCELLED
+}
+
+enum FileType {
+  IMAGE
+  VIDEO
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(EMPLOYEE)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  uploadedFiles ProofFile[]
+  events         ProofEvent[]
+
+  @@map("users")
+}
+
+model Order {
+  id               String      @id @default(cuid())
+  sallaOrderId     String?     @unique
+  orderNumber      String      @unique
+  customerName     String
+  customerMobile   String
+  customerMobileLast4 String
+  customerEmail    String?
+  sallaStatus     String?
+  proofStatus     ProofStatus @default(PENDING)
+  proofToken       String      @unique @default(cuid())
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  items   OrderItem[]
+  files   ProofFile[]
+  events  ProofEvent[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  productName String
+  quantity    Int      @default(1)
+  sku         String?
+  price       Float?
+  createdAt   DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_items")
+}
+
+model ProofFile {
+  id          String   @id @default(cuid())
+  orderId     String
+  type        FileType
+  storageKey  String
+  fileName    String
+  mimeType    String
+  size        Int
+  sortOrder   Int      @default(0)
+  uploadedById String?
+  createdAt   DateTime @default(now())
+
+  order      Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  uploadedBy User?      @relation(fields: [uploadedById], references: [id])
+
+  @@map("proof_files")
+}
+
+model ProofEvent {
+  id          String   @id @default(cuid())
+  orderId     String
+  eventType   String
+  note        String?
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  order      Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  createdBy User?      @relation(fields: [createdById], references: [id])
+
+  @@map("proof_events")
+}
+
+model WebhookLog {
+  id        String   @id @default(cuid())
+  event     String
+  payload   Json
+  processed Boolean  @default(false)
+  error     String?
+  createdAt DateTime @default(now())
+
+  @@map("webhook_logs")
+}
