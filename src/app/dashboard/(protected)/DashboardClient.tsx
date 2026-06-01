@@ -55,6 +55,9 @@ export default function DashboardClient() {
         order.customerMobile.includes(search)
       );
     }
+    if (mobileSearch) {
+      return order.customerMobile.includes(mobileSearch);
+    }
     return true;
   });
 
@@ -71,29 +74,37 @@ export default function DashboardClient() {
   return (
     <div className="min-h-screen bg-background-cream">
       <header className="bg-background-white border-b border-border sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold text-primary">لوحة التحكم</h1>
-            <a
-              href="/dashboard/import"
-              className="text-xs px-3 py-1.5 bg-secondary text-text-primary rounded-lg hover:bg-secondary-dark transition-colors whitespace-nowrap"
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+            <div className="flex items-center gap-3">
+              <div>
+                <h1 className="text-lg sm:text-xl font-bold text-primary">لوحة التحكم</h1>
+                <p className="text-xs text-text-secondary hidden sm:block">إدارة طلبات التوثيق</p>
+              </div>
+              <a
+                href="/dashboard/import"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-xs font-medium rounded-lg hover:bg-primary-dark transition-colors whitespace-nowrap"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                استيراد Excel
+              </a>
+            </div>
+            <button
+              onClick={handleLogout}
+              disabled={logoutLoading}
+              className="text-text-secondary hover:text-primary transition-colors text-sm py-2 sm:py-0"
             >
-              استيراد من Excel
-            </a>
+              {logoutLoading ? 'جاري الخروج...' : 'تسجيل الخروج'}
+            </button>
           </div>
-          <button
-            onClick={handleLogout}
-            disabled={logoutLoading}
-            className="text-text-secondary hover:text-primary transition-colors text-sm"
-          >
-            {logoutLoading ? 'جاري الخروج...' : 'تسجيل الخروج'}
-          </button>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-6">
-        <div className="card p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="card p-4 sm:p-6 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             <div>
               <label className="label">بحث برقم الطلب</label>
               <input
@@ -143,17 +154,17 @@ export default function DashboardClient() {
         ) : (
           <div className="card overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[800px]">
                 <thead className="bg-background-beige">
                   <tr>
-                    <th className="text-right px-4 py-3 text-sm font-medium text-text-primary">رقم الطلب</th>
-                    <th className="text-right px-4 py-3 text-sm font-medium text-text-primary">العميل</th>
-                    <th className="text-right px-4 py-3 text-sm font-medium text-text-primary">الجوال</th>
-                    <th className="text-right px-4 py-3 text-sm font-medium text-text-primary">حالة سلة</th>
-                    <th className="text-right px-4 py-3 text-sm font-medium text-text-primary">التوثيق</th>
-                    <th className="text-right px-4 py-3 text-sm font-medium text-text-primary">الملفات</th>
-                    <th className="text-right px-4 py-3 text-sm font-medium text-text-primary">التاريخ</th>
-                    <th className="text-right px-4 py-3 text-sm font-medium text-text-primary"></th>
+                    <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap">رقم الطلب</th>
+                    <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap">العميل</th>
+                    <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap hidden sm:table-cell">الجوال</th>
+                    <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap hidden md:table-cell">حالة سلة</th>
+                    <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap">التوثيق</th>
+                    <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap hidden sm:table-cell">الملفات</th>
+                    <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap hidden lg:table-cell">التاريخ</th>
+                    <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -163,30 +174,30 @@ export default function DashboardClient() {
 
                     return (
                       <tr key={order.id} className="hover:bg-background-cream/50">
-                        <td className="px-4 py-3 font-mono text-sm" dir="ltr">{order.orderNumber}</td>
-                        <td className="px-4 py-3 text-sm">{order.customerName}</td>
-                        <td className="px-4 py-3 font-mono text-sm" dir="ltr">{order.customerMobile}</td>
-                        <td className="px-4 py-3">
-                          <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+                        <td className="px-3 sm:px-4 py-3 font-mono text-xs sm:text-sm whitespace-nowrap" dir="ltr">{order.orderNumber}</td>
+                        <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm whitespace-nowrap">{order.customerName}</td>
+                        <td className="px-3 sm:px-4 py-3 font-mono text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell" dir="ltr">{order.customerMobile}</td>
+                        <td className="px-3 sm:px-4 py-3 hidden md:table-cell">
+                          <span className="text-xs bg-gray-100 px-2 py-1 rounded whitespace-nowrap">
                             {order.sallaStatus || '-'}
                           </span>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
                           <span className={`status-badge status-${order.proofStatus.toLowerCase().replace('_', '-')}`}>
                             {statusLabels[order.proofStatus] || order.proofStatus}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm">
+                        <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">
                           {imagesCount > 0 && <span className="text-blue-600">📷 {imagesCount}</span>}
-                          {videosCount > 0 && <span className="text-purple-600 mr-2">🎬 {videosCount}</span>}
+                          {videosCount > 0 && <span className="text-purple-600 mr-1">🎬 {videosCount}</span>}
                         </td>
-                        <td className="px-4 py-3 text-sm text-text-secondary">
+                        <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm text-text-secondary whitespace-nowrap hidden lg:table-cell">
                           {new Date(order.createdAt).toLocaleDateString('ar-SA')}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
                           <Link
                             href={`/dashboard/orders/${order.id}`}
-                            className="text-primary hover:underline text-sm"
+                            className="text-primary hover:underline text-xs sm:text-sm"
                           >
                             فتح
                           </Link>
