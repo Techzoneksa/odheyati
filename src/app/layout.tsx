@@ -4,6 +4,9 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'توثيقات أضحيتي',
   description: 'نظام توثيق طلبات متجر أضحيتي',
+  icons: {
+    icon: '/favicon.png',
+  },
 };
 
 export default function RootLayout({

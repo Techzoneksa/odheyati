@@ -83,7 +83,7 @@ export default function HomePage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="mb-4">
-            <img src="/logo.svg" alt="أضحيتي" width={120} height={50} className="mx-auto" />
+            <img src="/logo.png" alt="أضحيتي" width={180} height={60} className="mx-auto" />
           </div>
           <p className="text-lg text-text-secondary">توثيقات أضحيتي</p>
         </div>
