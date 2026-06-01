@@ -72,7 +72,15 @@ export default function DashboardClient() {
     <div className="min-h-screen bg-background-cream">
       <header className="bg-background-white border-b border-border sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+          <div className="flex justify-between items-center mb-6">
           <h1 className="text-xl font-bold text-primary">لوحة التحكم</h1>
+          <a
+            href="/dashboard/import"
+            className="btn-secondary text-sm"
+          >
+            استيراد طلبات من Excel
+          </a>
+        </div>
           <button
             onClick={handleLogout}
             disabled={logoutLoading}

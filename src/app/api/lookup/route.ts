@@ -1,15 +1,26 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { lookupSchema } from '@/lib/schemas';
+import { mobileLookupSchema } from '@/lib/schemas';
 
 const rateLimit = new Map<string, { count: number; resetTime: number }>();
-const RATE_LIMIT = 5;
+const RATE_LIMIT = 10;
 const RATE_WINDOW = 60 * 1000;
 
 function getClientIP(request: Request): string {
   return request.headers.get('x-forwarded-for')?.split(',')[0] ||
          request.headers.get('x-real-ip') ||
          'unknown';
+}
+
+function normalizeMobile(countryCode: string, mobile: string): string {
+  let cleaned = mobile.replace(/[\s\-()+\[\]]/g, '');
+  if (cleaned.startsWith('0')) {
+    cleaned = cleaned.substring(1);
+  }
+  if (cleaned.startsWith(countryCode)) {
+    return countryCode + cleaned.substring(countryCode.length);
+  }
+  return countryCode + cleaned;
 }
 
 export async function POST(request: Request) {
@@ -36,30 +47,63 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const parsed = lookupSchema.safeParse(body);
+    const parsed = mobileLookupSchema.safeParse(body);
 
     if (!parsed.success) {
       return NextResponse.json(
-        { found: false },
+        { error: 'بيانات غير صالحة' },
         { status: 400 }
       );
     }
 
-    const { orderNumber, mobileLast4 } = parsed.data;
+    const { countryCode, mobile } = parsed.data;
+    const normalizedMobile = normalizeMobile(countryCode, mobile);
 
-    const order = await prisma.order.findUnique({
-      where: { orderNumber },
+    const orders = await prisma.order.findMany({
+      where: {
+        customerMobile: normalizedMobile,
+        proofStatus: {
+          not: 'CANCELLED',
+        },
+      },
+      select: {
+        id: true,
+        orderNumber: true,
+        proofStatus: true,
+        proofToken: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
     });
 
-    if (!order) {
-      return NextResponse.json({ found: false });
+    if (orders.length === 0) {
+      return NextResponse.json({ error: 'لم نجد توثيقًا' });
     }
 
-    if (order.customerMobileLast4 !== mobileLast4) {
-      return NextResponse.json({ found: false });
+    if (orders.length === 1) {
+      return NextResponse.json({ 
+        found: true, 
+        token: orders[0].proofToken,
+        orders: orders.map(o => ({
+          id: o.id,
+          orderNumber: o.orderNumber,
+          proofStatus: o.proofStatus,
+          createdAt: o.createdAt.toISOString(),
+          proofToken: o.proofToken,
+        }))
+      });
     }
 
-    return NextResponse.json({ found: true, token: order.proofToken });
+    return NextResponse.json({ 
+      found: true,
+      orders: orders.map(o => ({
+        id: o.id,
+        orderNumber: o.orderNumber,
+        proofStatus: o.proofStatus,
+        createdAt: o.createdAt.toISOString(),
+        proofToken: o.proofToken,
+      }))
+    });
   } catch (error) {
     console.error('Lookup error:', error);
     return NextResponse.json(

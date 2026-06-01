@@ -5,9 +5,9 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'كلمة المرور مطلوبة'),
 });
 
-export const lookupSchema = z.object({
-  orderNumber: z.string().min(1, 'رقم الطلب مطلوب'),
-  mobileLast4: z.string().length(4, 'آخر 4 أرقام من الجوال يجب أن تكون 4 أرقام'),
+export const mobileLookupSchema = z.object({
+  countryCode: z.string().min(2, 'رمز الدولة مطلوب'),
+  mobile: z.string().min(7, 'رقم الجوال غير صالح'),
 });
 
 export const proofStatusSchema = z.object({
