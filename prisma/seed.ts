@@ -50,7 +50,7 @@ async function main() {
 
   console.log('✓ Seed completed');
   console.log(`  Admin: ${adminEmail}`);
-  console.log(`  Password: ${adminPassword}`);
+  console.log(`  Admin user created/updated`);
   console.log(`  Demo Order: ${order.orderNumber}`);
   console.log(`  Proof Token: ${order.proofToken}`);
 }
