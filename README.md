@@ -2,6 +2,8 @@
 
 مشروع MVP لنظام توثيق طلبات متجر أضحيتي.
 
+**Production Domain:** https://almotamed.com
+
 ## المتطلبات
 
 - Node.js 18+
@@ -19,17 +21,11 @@ npm install
 ### 2. إعداد قاعدة البيانات
 
 ```bash
-# نسخ ملف البيئة
 cp .env.example .env
 # عدّل الملف وأضف بياناتك
 
-# إنشاءmigration الأول
 npm run db:migrate
-
-# توليد Prisma Client
 npm run db:generate
-
-# إنشاء المستخدم الإداري
 npm run db:seed
 ```
 
@@ -41,11 +37,15 @@ npm run dev
 
 المشروع يعمل على `http://localhost:3000`
 
+Production يعمل على `https://almotamed.com`
+
 ## متغيرات البيئة
 
 | المتغير | الوصف |
 |---------|-------|
 | `DATABASE_URL` | رابط قاعدة البيانات PostgreSQL |
+| `APP_URL` | رابط الموقع للإنتاج (https://almotamed.com) |
+| `NEXT_PUBLIC_APP_URL` | نفس APP_URL للعميل |
 | `NEXTAUTH_SECRET` | مفتاح سري للجلسة (32 حرف على الأقل) |
 | `ADMIN_EMAIL` | إيميل الأدمن |
 | `ADMIN_PASSWORD` | كلمة مرور الأدمن |
@@ -60,14 +60,14 @@ npm run dev
 
 1. أنشئ R2 bucket في Cloudflare Dashboard
 2. أنشئ API token مع صلاحيات Read/Write
-3. أضف الح_bucket name و cloudflare.com إلى R2 bucket كـ custom domain
+3. أضف bucket name و cloudflare.com إلى R2 bucket كـ custom domain
 
 ## إعداد Salla Webhook
 
 1. من لوحة تحكم سلة، اذهب إلى الإعدادات > التطبيقات > Webhooks
 2. أضف webhook جديد لـ URL:
    ```
-   https://your-domain.com/api/webhooks/salla
+   https://almotamed.com/api/webhooks/salla
    ```
 3. اختر الأحداث:
    - `order.created`
@@ -80,7 +80,7 @@ npm run dev
 ### اختبار Webhook
 
 ```bash
-curl -X POST http://localhost:3000/api/webhooks/salla \
+curl -X POST https://almotamed.com/api/webhooks/salla \
   -H "Content-Type: application/json" \
   -H "x-salla-signature: test-signature" \
   -d '{
@@ -106,7 +106,7 @@ npm run db:seed
 
 ### تسجيل دخول لوحة التحكم
 
-- الرابط: `/dashboard`
+- الرابط: `https://almotamed.com/dashboard`
 - الإيميل: `ADMIN_EMAIL` من `.env`
 - كلمة المرور: `ADMIN_PASSWORD` من `.env`
 
@@ -142,5 +142,6 @@ npm run lint       # فحص الكود
 npm run typecheck  # فحص الأنواع
 npm run db:generate # توليد Prisma Client
 npm run db:migrate  # تطبيق Migrations
+npm run db:deploy   # تطبيق Migrations في الإنتاج
 npm run db:seed     # تشغيل Seeder
 ```

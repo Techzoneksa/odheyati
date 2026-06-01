@@ -68,7 +68,7 @@ export default async function OrderDetailsPage({ params }: Props) {
           createdAt: e.createdAt.toISOString(),
         })),
       }}
-      proofUrl={`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/proof/${order.proofToken}`}
+      proofUrl={`${process.env.APP_URL || 'https://almotamed.com'}/proof/${order.proofToken}`}
     />
   );
 }
