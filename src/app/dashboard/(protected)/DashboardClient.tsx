@@ -15,9 +15,101 @@ interface Order {
   createdAt: string;
 }
 
+interface Stats {
+  totalOrders: number;
+  uniqueCustomers: number;
+  inProgressOrders: number;
+  slaughteredOrders: number;
+  readyOrders: number;
+  withFilesOrders: number;
+  withoutFilesOrders: number;
+  cancelledOrders: number;
+}
+
+interface StatCardProps {
+  label: string;
+  value: number;
+  color: 'primary' | 'secondary' | 'neutral' | 'green' | 'blue' | 'purple' | 'red' | 'yellow';
+}
+
+function StatCard({ label, value, color }: StatCardProps) {
+  const colorClasses: Record<string, string> = {
+    primary: 'border-r-primary text-primary',
+    secondary: 'border-r-secondary text-secondary-dark',
+    neutral: 'border-r-neutral text-neutral',
+    green: 'border-r-green-600 text-green-700',
+    blue: 'border-r-blue-600 text-blue-700',
+    purple: 'border-r-purple-600 text-purple-700',
+    red: 'border-r-red-600 text-red-700',
+    yellow: 'border-r-yellow-600 text-yellow-700',
+  };
+
+  return (
+    <div className={`bg-background-white rounded-lg border border-border p-4 border-r-4 ${colorClasses[color]}`}>
+      <p className="text-2xl font-bold">{value.toLocaleString('ar-SA')}</p>
+      <p className="text-xs text-text-secondary mt-1">{label}</p>
+    </div>
+  );
+}
+
+function normalizeMobileForSearch(mobile: string): string[] {
+  const variations: string[] = [];
+  let cleaned = mobile.replace(/[\s\-()+\[\]]/g, '');
+  
+  const countryCodes = ['966', '971', '965', '974', '973', '968'];
+  
+  if (cleaned.startsWith('+')) {
+    cleaned = cleaned.substring(1);
+  }
+  
+  if (cleaned.startsWith('00')) {
+    cleaned = cleaned.substring(2);
+    variations.push(cleaned);
+  }
+  
+  if (cleaned.startsWith('0') && cleaned.length > 9) {
+    cleaned = cleaned.substring(1);
+  }
+  
+  let detectedCode = '966';
+  for (const code of countryCodes) {
+    if (cleaned.startsWith(code)) {
+      detectedCode = code;
+      break;
+    }
+  }
+  
+  variations.push(cleaned);
+  
+  if (cleaned.startsWith(detectedCode)) {
+    const localNum = cleaned.substring(detectedCode.length);
+    variations.push(localNum);
+    if (localNum.startsWith('0')) {
+      variations.push(localNum.substring(1));
+    }
+  }
+  
+  for (const code of countryCodes) {
+    if (!cleaned.startsWith(code) && cleaned.length >= 9) {
+      variations.push(code + cleaned);
+    }
+  }
+  
+  if (cleaned.length >= 9) {
+    variations.push(cleaned.slice(-9));
+  }
+  
+  if (cleaned.length >= 7) {
+    variations.push(cleaned.slice(-7));
+  }
+  
+  return Array.from(new Set(variations)).filter(v => v.length >= 7);
+}
+
 export default function DashboardClient() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [mobileSearch, setMobileSearch] = useState('');
@@ -25,8 +117,17 @@ export default function DashboardClient() {
   const [logoutLoading, setLogoutLoading] = useState(false);
 
   useEffect(() => {
+    fetchStats();
     fetchOrders();
   }, [statusFilter]);
+
+  async function fetchStats() {
+    const res = await fetch('/api/orders/stats');
+    if (res.ok) {
+      const data = await res.json();
+      setStats(data);
+    }
+  }
 
   async function fetchOrders() {
     setLoading(true);
@@ -50,13 +151,13 @@ export default function DashboardClient() {
   const filteredOrders = orders.filter((order) => {
     if (search) {
       const searchLower = search.toLowerCase();
-      return (
-        order.orderNumber.toLowerCase().includes(searchLower) ||
-        order.customerMobile.includes(search)
-      );
+      if (order.orderNumber.toLowerCase().includes(searchLower)) {
+        return true;
+      }
     }
     if (mobileSearch) {
-      return order.customerMobile.includes(mobileSearch);
+      const variations = normalizeMobileForSearch(mobileSearch);
+      return variations.some(v => order.customerMobile.includes(v));
     }
     return true;
   });
@@ -103,6 +204,19 @@ export default function DashboardClient() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-6">
+        {stats && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
+            <StatCard label="إجمالي الطلبات" value={stats.totalOrders} color="primary" />
+            <StatCard label="إجمالي العملاء" value={stats.uniqueCustomers} color="secondary" />
+            <StatCard label="قيد التنفيذ" value={stats.inProgressOrders} color="yellow" />
+            <StatCard label="تم الذبح" value={stats.slaughteredOrders} color="purple" />
+            <StatCard label="التوثيق جاهز" value={stats.readyOrders} color="green" />
+            <StatCard label="بدون ملفات" value={stats.withoutFilesOrders} color="neutral" />
+            <StatCard label="فيها ملفات" value={stats.withFilesOrders} color="blue" />
+            <StatCard label="ملغية" value={stats.cancelledOrders} color="red" />
+          </div>
+        )}
+
         <div className="card p-4 sm:p-6 mb-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             <div>
@@ -112,7 +226,7 @@ export default function DashboardClient() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="input-field"
-                placeholder="مثال: ORD-001"
+                placeholder="مثال: 262392337"
                 dir="ltr"
               />
             </div>
@@ -123,7 +237,7 @@ export default function DashboardClient() {
                 value={mobileSearch}
                 onChange={(e) => setMobileSearch(e.target.value)}
                 className="input-field"
-                placeholder="05xxxxxxxx"
+                placeholder="5XXXXXXXX أو +9665XXXXXXXX"
                 dir="ltr"
               />
             </div>
