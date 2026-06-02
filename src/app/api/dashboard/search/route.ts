@@ -56,6 +56,13 @@ function normalizeMobileForSearch(mobile: string): string[] {
   return Array.from(new Set(variations)).filter(v => v.length >= 7);
 }
 
+function maskMobile(mobile: string): string {
+  if (mobile.length > 7) {
+    return `****${mobile.slice(-4)}`;
+  }
+  return mobile;
+}
+
 export async function GET(request: Request) {
   const session = await getSession();
   if (!session) {
@@ -63,37 +70,52 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const orderNumber = searchParams.get('orderNumber');
-  const mobile = searchParams.get('mobile');
-  const status = searchParams.get('status');
+  const query = searchParams.get('q') || '';
+  const type = searchParams.get('type') || 'all';
 
-  const whereClause: any = {};
-
-  if (status) {
-    whereClause.proofStatus = status;
+  if (query.length < 3) {
+    return NextResponse.json([]);
   }
 
-  if (orderNumber) {
-    whereClause.orderNumber = {
-      contains: orderNumber.toString(),
-      mode: 'insensitive',
-    };
-  }
+  const whereClause: any = {
+    OR: [
+      { orderNumber: { contains: query, mode: 'insensitive' } },
+      { customerName: { contains: query, mode: 'insensitive' } },
+    ],
+  };
 
-  if (mobile) {
-    const mobileVariations = normalizeMobileForSearch(mobile);
-    whereClause.OR = mobileVariations.map(m => ({
-      customerMobile: { contains: m },
-    }));
+  if (type === 'mobile' || type === 'all') {
+    const mobileVariations = normalizeMobileForSearch(query);
+    if (mobileVariations.length > 0) {
+      const mobileConditions = mobileVariations.map(m => ({
+        customerMobile: { contains: m },
+      }));
+      whereClause.OR = [...whereClause.OR, ...mobileConditions];
+    }
   }
 
   const orders = await prisma.order.findMany({
-    where: Object.keys(whereClause).length > 0 ? whereClause : undefined,
-    orderBy: { createdAt: 'desc' },
-    include: {
-      files: true,
+    where: whereClause,
+    select: {
+      id: true,
+      orderNumber: true,
+      customerName: true,
+      customerMobile: true,
+      proofStatus: true,
+      sallaStatus: true,
     },
+    take: 10,
+    orderBy: { createdAt: 'desc' },
   });
 
-  return NextResponse.json(orders);
+  const results = orders.map(order => ({
+    id: order.id,
+    orderNumber: order.orderNumber,
+    customerName: order.customerName,
+    customerMobileMasked: maskMobile(order.customerMobile),
+    proofStatus: order.proofStatus,
+    sallaStatus: order.sallaStatus,
+  }));
+
+  return NextResponse.json(results);
 }

@@ -16,6 +16,8 @@ export async function GET(request: Request) {
     readyOrders,
     withFilesOrders,
     cancelledOrders,
+    ordersWithFiles,
+    ordersWithoutFiles,
   ] = await Promise.all([
     prisma.order.count(),
     prisma.order.findMany({
@@ -46,18 +48,64 @@ export async function GET(request: Request) {
         ],
       },
     }),
+    prisma.order.findMany({
+      where: {
+        files: { some: { OR: [{ type: 'IMAGE' }, { type: 'VIDEO' }] } },
+      },
+      select: { customerMobile: true },
+    }),
+    prisma.order.findMany({
+      where: {
+        OR: [
+          { proofStatus: 'CANCELLED' },
+          { sallaStatus: { contains: 'إلغاء' } },
+          { sallaStatus: { contains: 'ملغي' } },
+          { sallaStatus: { contains: 'cancelled' } },
+        ],
+      },
+      select: { id: true },
+    }),
   ]);
 
-  const withoutFilesOrders = totalOrders - withFilesOrders - cancelledOrders;
+  const cancelledOrderIds = new Set(ordersWithoutFiles.map(o => o.id));
+  const allOrders = await prisma.order.findMany({
+    where: { proofStatus: { not: 'CANCELLED' } },
+    select: {
+      id: true,
+      customerMobile: true,
+      files: { select: { type: true } },
+    },
+  });
+
+  const documentedOrders = allOrders.filter(o => {
+    const hasImages = o.files.some(f => f.type === 'IMAGE');
+    const hasVideos = o.files.some(f => f.type === 'VIDEO');
+    return hasImages || hasVideos;
+  });
+
+  const undocumentedOrders = allOrders.filter(o => {
+    const hasImages = o.files.some(f => f.type === 'IMAGE');
+    const hasVideos = o.files.some(f => f.type === 'VIDEO');
+    return !hasImages && !hasVideos;
+  });
+
+  const documentedMobiles = new Set(documentedOrders.map(o => o.customerMobile));
+  const undocumentedMobiles = new Set(undocumentedOrders.map(o => o.customerMobile));
+
+  const documentationRate = totalOrders > 0 
+    ? Math.round((withFilesOrders / totalOrders) * 100) 
+    : 0;
 
   return NextResponse.json({
     totalOrders,
     uniqueCustomers: uniqueCustomers.length,
+    withFilesOrders,
+    withoutFilesOrders: undocumentedOrders.length,
     inProgressOrders,
     slaughteredOrders,
     readyOrders,
-    withFilesOrders,
-    withoutFilesOrders,
     cancelledOrders,
+    documentationRate,
+    undocumentedCustomersCount: undocumentedMobiles.size,
   });
 }
