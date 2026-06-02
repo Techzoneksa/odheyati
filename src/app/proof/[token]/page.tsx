@@ -5,11 +5,11 @@ import Link from 'next/link';
 import Image from 'next/image';
 
 const statusLabels: Record<string, string> = {
-  PENDING: 'بانتظار التنفيذ',
+  PENDING: 'بانتظار',
   IN_PROGRESS: 'قيد التنفيذ',
   SLAUGHTERED: 'تم الذبح',
   MEDIA_UPLOADED: 'تم رفع الملفات',
-  READY: 'جاهز للعميل',
+  READY: 'جاهز',
   VIEWED: 'تمت المشاهدة',
   CANCELLED: 'ملغي',
 };
@@ -28,6 +28,45 @@ export async function generateMetadata({ params }: Props) {
     title: order ? `توثيق طلب ${order.orderNumber}` : 'التوثيق',
     robots: { index: false, follow: false },
   };
+}
+
+function getStatusMessage(proofStatus: string, hasFiles: boolean, customerName: string): { title: string; message: string } {
+  switch (proofStatus) {
+    case 'CANCELLED':
+      return {
+        title: 'الطلب غير متاح',
+        message: 'لا يتوفر توثيق لهذا الطلب حاليًا. يمكنكم التواصل مع المتجر لمزيد من التفاصيل.',
+      };
+    case 'PENDING':
+    case 'IN_PROGRESS':
+      return {
+        title: `مرحبًا ${customerName}`,
+        message: 'طلبكم في مرحلة المتابعة والتجهيز، وسيتم تحديث هذه الصفحة عند جاهزية التوثيق.\nيمكنكم العودة لهذه الصفحة لاحقًا لمتابعة حالة الطلب.',
+      };
+    case 'SLAUGHTERED':
+      if (!hasFiles) {
+        return {
+          title: `مرحبًا ${customerName}`,
+          message: 'تم تنفيذ طلبكم بنجاح، وجاري تجهيز ورفع ملفات التوثيق الخاصة بكم.',
+        };
+      }
+      return {
+        title: `مرحبًا ${customerName}`,
+        message: 'توثيق طلبكم جاهز، يمكنكم مشاهدة الصور والفيديوهات أدناه.',
+      };
+    case 'MEDIA_UPLOADED':
+    case 'READY':
+    case 'VIEWED':
+      return {
+        title: `مرحبًا ${customerName}`,
+        message: 'توثيق طلبكم جاهز، يمكنكم مشاهدة الصور والفيديوهات أدناه.',
+      };
+    default:
+      return {
+        title: `مرحبًا ${customerName}`,
+        message: 'طلبكم قيد التنفيذ، وسيظهر التوثيق هنا بعد اكتمال التجهيز.',
+      };
+  }
 }
 
 export default async function ProofPage({ params }: Props) {
@@ -49,6 +88,7 @@ export default async function ProofPage({ params }: Props) {
 
   const images = order.files.filter(f => f.type === 'IMAGE');
   const videos = order.files.filter(f => f.type === 'VIDEO');
+  const hasFiles = images.length > 0 || videos.length > 0;
 
   const imagesWithUrls = await Promise.all(
     images.map(async (f) => ({
@@ -64,58 +104,66 @@ export default async function ProofPage({ params }: Props) {
     }))
   );
 
+  const customerName = order.customerName.split(' ')[0];
+  const statusMessage = getStatusMessage(order.proofStatus, hasFiles, customerName);
+
+  const showFiles = hasFiles && ['SLAUGHTERED', 'MEDIA_UPLOADED', 'READY', 'VIEWED'].includes(order.proofStatus);
+  const showInProgressMessage = ['PENDING', 'IN_PROGRESS'].includes(order.proofStatus) && !hasFiles;
+  const showSlaughteredMessage = order.proofStatus === 'SLAUGHTERED' && !hasFiles;
+  const showCancelledMessage = order.proofStatus === 'CANCELLED';
+
   return (
     <main className="min-h-screen px-4 py-8">
       <div className="max-w-2xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-primary mb-2">أضحيتي</h1>
-          <p className="text-text-secondary">توثيقات أضحيتي</p>
+          <img src="/logo.png" alt="أضحيتي" width={180} height={60} className="mx-auto mb-4" />
+          <p className="text-lg text-text-secondary">توثيقات أضحيتي</p>
         </div>
 
         <div className="card p-6 mb-6">
           <div className="flex justify-between items-start mb-4">
             <div>
-              <h2 className="text-xl font-bold text-text-primary">{order.customerName}</h2>
+              <h2 className="text-xl font-bold text-text-primary">{statusMessage.title}</h2>
               <p className="text-text-secondary">طلب #{order.orderNumber}</p>
             </div>
-            <span className={`status-badge ${order.proofStatus.toLowerCase().replace('_', '-')}`}>
+            <span className={`status-badge status-${order.proofStatus.toLowerCase().replace('_', '-')}`}>
               {statusLabels[order.proofStatus] || order.proofStatus}
             </span>
           </div>
 
           {order.createdAt && (
-            <p className="text-sm text-text-secondary mb-4">
+            <p className="text-sm text-text-secondary">
               تاريخ الطلب: {new Date(order.createdAt).toLocaleDateString('ar-SA')}
             </p>
           )}
-
-          {order.items.length > 0 && (
-            <div className="border-t border-border pt-4">
-              <h3 className="font-semibold text-text-primary mb-2">المنتجات</h3>
-              <ul className="space-y-2">
-                {order.items.map((item) => (
-                  <li key={item.id} className="flex justify-between text-sm">
-                    <span>{item.productName}</span>
-                    {item.quantity > 1 && <span>x{item.quantity}</span>}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
         </div>
 
-        {(order.proofStatus === 'PENDING' || order.proofStatus === 'IN_PROGRESS') && images.length === 0 && videos.length === 0 ? (
+        {showCancelledMessage ? (
+          <div className="card p-6 text-center">
+            <div className="text-4xl mb-4">⚠️</div>
+            <p className="text-text-primary font-medium">{statusMessage.title}</p>
+            <p className="text-text-secondary text-sm mt-2 whitespace-pre-line">{statusMessage.message}</p>
+          </div>
+        ) : showInProgressMessage ? (
           <div className="card p-6 text-center">
             <div className="text-4xl mb-4">⏳</div>
-            <p className="text-text-primary font-medium">طلبكم قيد التنفيذ</p>
-            <p className="text-text-secondary text-sm mt-2">
-              سيظهر التوثيق هنا بعد اكتمال التجهيز
-            </p>
+            <p className="text-text-primary font-medium">{statusMessage.title}</p>
+            <p className="text-text-secondary text-sm mt-2 whitespace-pre-line">{statusMessage.message}</p>
           </div>
-        ) : (
+        ) : showSlaughteredMessage ? (
+          <div className="card p-6 text-center">
+            <div className="text-4xl mb-4">✅</div>
+            <p className="text-text-primary font-medium">{statusMessage.title}</p>
+            <p className="text-text-secondary text-sm mt-2 whitespace-pre-line">{statusMessage.message}</p>
+          </div>
+        ) : showFiles ? (
           <>
+            <div className="card p-6 mb-4">
+              <p className="text-text-primary whitespace-pre-line">{statusMessage.message}</p>
+            </div>
+
             {imagesWithUrls.length > 0 && (
-              <div className="card p-6 mb-6">
+              <div className="card p-6 mb-4">
                 <h3 className="font-semibold text-text-primary mb-4">الصور</h3>
                 <div className="grid grid-cols-2 gap-4">
                   {imagesWithUrls.map((image) => (
@@ -141,7 +189,7 @@ export default async function ProofPage({ params }: Props) {
             )}
 
             {videosWithUrls.length > 0 && (
-              <div className="card p-6 mb-6">
+              <div className="card p-6 mb-4">
                 <h3 className="font-semibold text-text-primary mb-4">الفيديوهات</h3>
                 <div className="space-y-4">
                   {videosWithUrls.map((video) => (
@@ -164,10 +212,10 @@ export default async function ProofPage({ params }: Props) {
               </div>
             )}
           </>
-        )}
+        ) : null}
 
         <div className="text-center mt-8">
-          <Link href="/" className="text-primary hover:underline">
+          <Link href="/track" className="text-primary hover:underline">
             العودة للبحث
           </Link>
         </div>
