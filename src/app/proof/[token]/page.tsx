@@ -213,10 +213,31 @@ export default async function ProofPage({ params }: Props) {
           </>
         ) : null}
 
-        <div className="text-center mt-8">
-          <Link href="/track" className="text-primary hover:underline">
-            العودة للبحث
-          </Link>
+        <div className="card p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-center gap-3">
+            <Link
+              href="/track"
+              className="text-center py-3 px-6 rounded-lg border border-primary text-primary hover:bg-primary hover:text-white transition-colors font-medium"
+            >
+              العودة للبحث
+            </Link>
+            <a
+              href="https://odheyati.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-center py-3 px-6 rounded-lg border border-border text-text-secondary hover:bg-background-cream transition-colors font-medium"
+            >
+              العودة إلى المتجر
+            </a>
+            <a
+              href="https://api.whatsapp.com/send?phone=966562365161&text=السلام%20عليكم،%20أحتاج%20مساعدة%20بخصوص%20توثيق%20طلبي"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-center py-3 px-6 rounded-lg bg-secondary text-text-primary hover:bg-secondary-dark transition-colors font-medium"
+            >
+              الدردشة عبر واتساب
+            </a>
+          </div>
         </div>
       </div>
     </main>
