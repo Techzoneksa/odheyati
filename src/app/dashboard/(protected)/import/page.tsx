@@ -11,18 +11,39 @@ interface OrderRow {
   amount: string;
 }
 
-interface ImportResult {
-  added: number;
-  updated: number;
-  skipped: number;
-  errors: string[];
+interface RowResult {
+  row: number;
+  orderNumber: string;
+  customerName: string;
+  customerMobile: string;
+  status: 'added' | 'updated' | 'skipped' | 'failed' | 'warning';
+  message: string;
 }
+
+interface ImportReport {
+  summary: {
+    added: number;
+    updated: number;
+    skipped: number;
+    failed: number;
+    warnings: number;
+  };
+  rows: RowResult[];
+}
+
+const statusLabels: Record<string, { label: string; color: string }> = {
+  added: { label: 'مضاف', color: 'bg-green-100 text-green-800' },
+  updated: { label: 'محدث', color: 'bg-blue-100 text-blue-800' },
+  skipped: { label: 'متجاهل', color: 'bg-yellow-100 text-yellow-800' },
+  failed: { label: 'فشل', color: 'bg-red-100 text-red-800' },
+  warning: { label: 'تحذير', color: 'bg-orange-100 text-orange-800' },
+};
 
 export default function ImportPage() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<OrderRow[]>([]);
   const [importing, setImporting] = useState(false);
-  const [result, setResult] = useState<ImportResult | null>(null);
+  const [result, setResult] = useState<ImportReport | null>(null);
   const [error, setError] = useState('');
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -121,7 +142,7 @@ export default function ImportPage() {
   return (
     <div className="min-h-screen bg-background-cream">
       <header className="bg-background-white border-b border-border sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+        <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
             <a href="/dashboard" className="text-text-secondary hover:text-primary">
               ← العودة
@@ -131,7 +152,7 @@ export default function ImportPage() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-6">
+      <main className="max-w-6xl mx-auto px-4 py-6">
         <div className="card p-6 mb-6">
           <h2 className="text-lg font-semibold text-text-primary mb-4">رفع ملف Excel</h2>
           
@@ -209,32 +230,60 @@ export default function ImportPage() {
         {result && (
           <div className="card p-6">
             <h3 className="text-lg font-semibold text-text-primary mb-4">تقرير الاستيراد</h3>
-            <div className="grid grid-cols-3 gap-4 mb-4">
+            
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
               <div className="bg-green-50 rounded-lg p-4 text-center">
-                <p className="text-2xl font-bold text-green-700">{result.added}</p>
-                <p className="text-sm text-green-600">طلبات جديدة</p>
+                <p className="text-2xl font-bold text-green-700">{result.summary.added}</p>
+                <p className="text-sm text-green-600">مضاف</p>
               </div>
               <div className="bg-blue-50 rounded-lg p-4 text-center">
-                <p className="text-2xl font-bold text-blue-700">{result.updated}</p>
-                <p className="text-sm text-blue-600">طلبات محدثة</p>
+                <p className="text-2xl font-bold text-blue-700">{result.summary.updated}</p>
+                <p className="text-sm text-blue-600">محدث</p>
               </div>
               <div className="bg-yellow-50 rounded-lg p-4 text-center">
-                <p className="text-2xl font-bold text-yellow-700">{result.skipped}</p>
-                <p className="text-sm text-yellow-600">صفوف متجاهلة</p>
+                <p className="text-2xl font-bold text-yellow-700">{result.summary.skipped}</p>
+                <p className="text-sm text-yellow-600">متجاهل</p>
+              </div>
+              <div className="bg-red-50 rounded-lg p-4 text-center">
+                <p className="text-2xl font-bold text-red-700">{result.summary.failed}</p>
+                <p className="text-sm text-red-600">فشل</p>
+              </div>
+              <div className="bg-orange-50 rounded-lg p-4 text-center">
+                <p className="text-2xl font-bold text-orange-700">{result.summary.warnings}</p>
+                <p className="text-sm text-orange-600">تحذير</p>
               </div>
             </div>
 
-            {result.errors.length > 0 && (
-              <div className="bg-red-50 rounded-lg p-4">
-                <h4 className="font-medium text-red-700 mb-2">أسباب التجاهل:</h4>
-                <ul className="text-sm text-red-600 space-y-1">
-                  {result.errors.slice(0, 10).map((err, idx) => (
-                    <li key={idx}>• {err}</li>
-                  ))}
-                  {result.errors.length > 10 && (
-                    <li>... و {result.errors.length - 10} أخطاء أخرى</li>
-                  )}
-                </ul>
+            {result.rows.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-background-beige">
+                    <tr>
+                      <th className="text-right px-3 py-2">#</th>
+                      <th className="text-right px-3 py-2">رقم الطلب</th>
+                      <th className="text-right px-3 py-2">العميل</th>
+                      <th className="text-right px-3 py-2">الجوال</th>
+                      <th className="text-right px-3 py-2">النتيجة</th>
+                      <th className="text-right px-3 py-2">السبب</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {result.rows.map((row, idx) => (
+                      <tr key={idx} className={row.status === 'failed' ? 'bg-red-50' : ''}>
+                        <td className="px-3 py-2 text-text-secondary">{row.row}</td>
+                        <td className="px-3 py-2 font-mono" dir="ltr">{row.orderNumber}</td>
+                        <td className="px-3 py-2">{row.customerName}</td>
+                        <td className="px-3 py-2 font-mono" dir="ltr">{row.customerMobile}</td>
+                        <td className="px-3 py-2">
+                          <span className={`px-2 py-1 rounded-full text-xs ${statusLabels[row.status]?.color || 'bg-gray-100 text-gray-800'}`}>
+                            {statusLabels[row.status]?.label || row.status}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-text-secondary text-xs">{row.message}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>

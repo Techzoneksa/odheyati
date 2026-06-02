@@ -11,6 +11,26 @@ interface OrderRow {
   amount: string;
 }
 
+interface RowResult {
+  row: number;
+  orderNumber: string;
+  customerName: string;
+  customerMobile: string;
+  status: 'added' | 'updated' | 'skipped' | 'failed' | 'warning';
+  message: string;
+}
+
+interface ImportReport {
+  summary: {
+    added: number;
+    updated: number;
+    skipped: number;
+    failed: number;
+    warnings: number;
+  };
+  rows: RowResult[];
+}
+
 function normalizeMobile(mobile: string): { countryCode: string; localNumber: string; fullNumber: string } {
   let cleaned = mobile.replace(/[\s\-()+\[\]]/g, '');
   
@@ -49,14 +69,20 @@ function normalizeMobile(mobile: string): { countryCode: string; localNumber: st
   };
 }
 
-function mapSallaStatusToProofStatus(sallaStatus: string): string {
+function mapSallaStatusToProofStatus(sallaStatus: string, hasExistingFiles: boolean): string {
   const status = sallaStatus.toLowerCase();
+  
   if (status.includes('تم التنفيذ') || status.includes('slaughtered')) {
     return 'SLAUGHTERED';
   }
   if (status.includes('بانتظار') || status.includes('مراجعة') || status.includes('pending')) {
     return 'IN_PROGRESS';
   }
+  
+  if (hasExistingFiles) {
+    return '';
+  }
+  
   return 'PENDING';
 }
 
@@ -92,13 +118,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required columns' }, { status: 400 });
     }
 
-    let added = 0;
-    let updated = 0;
-    let skipped = 0;
-    const errors: string[] = [];
+    const report: ImportReport = {
+      summary: { added: 0, updated: 0, skipped: 0, failed: 0, warnings: 0 },
+      rows: [],
+    };
+
+    const existingMobiles = new Set<string>();
 
     for (let i = 1; i < jsonData.length; i++) {
       const row = jsonData[i];
+      const rowNum = i + 1;
       const orderNumber = String(row[orderCol] || '').trim();
       const customerName = String(row[nameCol] || '').trim();
       const customerMobile = String(row[mobileCol] || '').trim();
@@ -106,94 +135,165 @@ export async function POST(request: Request) {
       const amount = amountCol !== -1 ? String(row[amountCol] || '').trim() : '';
 
       if (!orderNumber) {
-        errors.push(`صف ${i + 1}: رقم الطلب ناقص`);
-        skipped++;
+        report.rows.push({
+          row: rowNum,
+          orderNumber: '-',
+          customerName: customerName || '-',
+          customerMobile: customerMobile || '-',
+          status: 'skipped',
+          message: 'رقم الطلب فارغ',
+        });
+        report.summary.skipped++;
         continue;
       }
 
       if (!customerName) {
-        errors.push(`صف ${i + 1}: اسم العميل ناقص`);
-        skipped++;
+        report.rows.push({
+          row: rowNum,
+          orderNumber,
+          customerName: '-',
+          customerMobile: customerMobile || '-',
+          status: 'failed',
+          message: 'اسم العميل فارغ',
+        });
+        report.summary.failed++;
         continue;
       }
 
       if (!customerMobile || customerMobile.length < 7) {
-        errors.push(`صف ${i + 1}: رقم الجوال غير صالح`);
-        skipped++;
+        report.rows.push({
+          row: rowNum,
+          orderNumber,
+          customerName,
+          customerMobile: customerMobile || '-',
+          status: 'failed',
+          message: 'رقم الجوال غير صالح',
+        });
+        report.summary.failed++;
         continue;
       }
 
       const { fullNumber, countryCode } = normalizeMobile(customerMobile);
       const mobileLast4 = fullNumber.slice(-4);
-      const proofStatus = mapSallaStatusToProofStatus(sallaStatus);
       const parsedAmount = parseFloat(amount.replace(/[^\d.]/g, '')) || null;
 
-      try {
-        const existingOrder = await prisma.order.findUnique({
+      const existingOrder = await prisma.order.findUnique({
+        where: { orderNumber },
+        include: { items: true, files: true },
+      });
+
+      if (existingOrder) {
+        const hasExistingFiles = existingOrder.files.length > 0;
+        const newProofStatus = mapSallaStatusToProofStatus(sallaStatus, hasExistingFiles);
+        
+        const updateData: any = {
+          customerName,
+          customerMobile: fullNumber,
+          customerMobileLast4: mobileLast4,
+          sallaStatus: sallaStatus || existingOrder.sallaStatus,
+        };
+
+        if (newProofStatus && newProofStatus !== existingOrder.proofStatus) {
+          updateData.proofStatus = newProofStatus;
+        }
+
+        await prisma.order.update({
           where: { orderNumber },
-          include: { items: true },
+          data: updateData,
         });
 
-        if (existingOrder) {
-          await prisma.order.update({
-            where: { orderNumber },
+        if (parsedAmount && existingOrder.items.length === 0) {
+          await prisma.orderItem.create({
             data: {
-              customerName,
-              customerMobile: fullNumber,
-              customerMobileLast4: mobileLast4,
-              sallaStatus: sallaStatus || existingOrder.sallaStatus,
-              proofStatus: proofStatus as any,
+              orderId: existingOrder.id,
+              productName: 'طلب مستورد من سلة',
+              quantity: 1,
+              price: parsedAmount,
             },
           });
-
-          if (parsedAmount && existingOrder.items.length === 0) {
-            await prisma.orderItem.create({
-              data: {
-                orderId: existingOrder.id,
-                productName: 'طلب مستورد من سلة',
-                quantity: 1,
-                price: parsedAmount,
-              },
-            });
-          }
-
-          updated++;
-        } else {
-          const newOrder = await prisma.order.create({
-            data: {
-              orderNumber,
-              customerName,
-              customerMobile: fullNumber,
-              customerMobileLast4: mobileLast4,
-              customerEmail: null,
-              sallaStatus,
-              proofStatus: proofStatus as any,
-              proofToken: `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`,
-            },
-          });
-
-          if (parsedAmount) {
-            await prisma.orderItem.create({
-              data: {
-                orderId: newOrder.id,
-                productName: 'طلب مستورد من سلة',
-                quantity: 1,
-                price: parsedAmount,
-              },
-            });
-          }
-
-          added++;
         }
-      } catch (err) {
-        errors.push(`صف ${i + 1}: خطأ في المعالجة`);
-        skipped++;
+
+        report.rows.push({
+          row: rowNum,
+          orderNumber,
+          customerName,
+          customerMobile: fullNumber,
+          status: 'updated',
+          message: hasExistingFiles 
+            ? 'تم التحديث (ملفات التوثيق محفوظة)' 
+            : 'تم التحديث',
+        });
+        report.summary.updated++;
+
+        if (existingMobiles.has(fullNumber)) {
+          report.rows.push({
+            row: rowNum,
+            orderNumber,
+            customerName,
+            customerMobile: fullNumber,
+            status: 'warning',
+            message: 'يوجد طلب سابق بنفس رقم الجوال',
+          });
+          report.summary.warnings++;
+        }
+        existingMobiles.add(fullNumber);
+      } else {
+        const hasOtherOrdersWithMobile = await prisma.order.findFirst({
+          where: { customerMobile: fullNumber },
+        });
+
+        const newOrder = await prisma.order.create({
+          data: {
+            orderNumber,
+            customerName,
+            customerMobile: fullNumber,
+            customerMobileLast4: mobileLast4,
+            customerEmail: null,
+            sallaStatus,
+            proofStatus: mapSallaStatusToProofStatus(sallaStatus, false) as any || 'PENDING',
+            proofToken: `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`,
+          },
+        });
+
+        if (parsedAmount) {
+          await prisma.orderItem.create({
+            data: {
+              orderId: newOrder.id,
+              productName: 'طلب مستورد من سلة',
+              quantity: 1,
+              price: parsedAmount,
+            },
+          });
+        }
+
+        report.rows.push({
+          row: rowNum,
+          orderNumber,
+          customerName,
+          customerMobile: fullNumber,
+          status: 'added',
+          message: 'تم إضافته كطلب جديد',
+        });
+        report.summary.added++;
+
+        if (hasOtherOrdersWithMobile) {
+          report.rows.push({
+            row: rowNum,
+            orderNumber,
+            customerName,
+            customerMobile: fullNumber,
+            status: 'warning',
+            message: 'يوجد طلب سابق لنفس رقم الجوال',
+          });
+          report.summary.warnings++;
+        }
+        existingMobiles.add(fullNumber);
       }
     }
 
-    return NextResponse.json({ added, updated, skipped, errors });
+    return NextResponse.json(report);
   } catch (error) {
-    console.error('Import error:', error);
+    console.error('Import error');
     return NextResponse.json({ error: 'Import failed' }, { status: 500 });
   }
 }
