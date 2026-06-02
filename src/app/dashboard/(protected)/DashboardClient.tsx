@@ -159,6 +159,7 @@ export default function DashboardClient() {
 
   useEffect(() => {
     fetchStats();
+    fetchOrders();
   }, []);
 
   useEffect(() => {
