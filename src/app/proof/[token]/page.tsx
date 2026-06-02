@@ -191,24 +191,23 @@ export default async function ProofPage({ params }: Props) {
             {videosWithUrls.length > 0 && (
               <div className="card p-6 mb-4">
                 <h3 className="font-semibold text-text-primary mb-4">الفيديوهات</h3>
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 justify-items-center">
                   {videosWithUrls.map((video) => (
-                    <div key={video.id} className="relative">
+                    <div key={video.id} className="video-proof-card">
                       <video
                         src={video.url}
                         controls
-                        className="w-full h-48 object-cover rounded-lg"
+                        playsInline
+                        className="video-element"
                       />
-                      <a
-                        href={video.url}
-                        download={video.fileName}
-                        className="mt-2 inline-flex items-center text-primary hover:underline text-sm"
-                      >
-                        تحميل الفيديو
-                      </a>
                     </div>
                   ))}
                 </div>
+                {videosWithUrls.length > 1 && (
+                  <p className="text-center text-text-secondary text-sm mt-4">
+                    يمكنكم التمرير لمشاهدة باقي الفيديوهات
+                  </p>
+                )}
               </div>
             )}
           </>
