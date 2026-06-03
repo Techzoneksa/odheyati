@@ -102,7 +102,7 @@ export async function GET(request: Request) {
     stage = 'FILL_SUMMARY_SHEET';
     summarySheet.columns = [{ width: 25 }, { width: 40 }];
 
-    summarySheet.addRow(['تقرير توثيقات أضحيتي']).font = { bold: true, size: 16, color: { argb: 'FF973131' } };
+    summarySheet.addRow(['تقرير توثيقات أضحيتي']);
     summarySheet.addRow([]);
 
     const exportDate = new Date().toLocaleDateString('ar-SA', {
@@ -129,12 +129,6 @@ export async function GET(request: Request) {
     summarySheet.addRow(['عدد الطلبات الجاهزة', readyCount]);
     summarySheet.addRow(['عدد الطلبات قيد التنفيذ', inProgressCount]);
 
-    summarySheet.getRow(1).font = { bold: true, size: 16, color: { argb: 'FF973131' } };
-
-    for (let i = 1; i <= 10; i++) {
-      summarySheet.getRow(i).border = { bottom: { style: 'thin', color: { argb: 'FFE8D3C4' } } };
-    }
-
     stage = 'FILL_DATA_SHEET_HEADERS';
     const headers = [
       'رقم الطلب',
@@ -159,8 +153,6 @@ export async function GET(request: Request) {
     dataSheet.addRow(headers);
 
     dataSheet.getRow(1).font = { bold: true, size: 12 };
-    dataSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF8F1' } };
-    dataSheet.getRow(1).border = { bottom: { style: 'medium', color: { argb: 'FF973131' } } };
     dataSheet.getRow(1).alignment = { horizontal: 'right', vertical: 'middle' };
 
     dataSheet.columns = [
@@ -212,28 +204,23 @@ export async function GET(request: Request) {
         rowData.push(totalAmount > 0 ? totalAmount.toFixed(2) : '-');
       }
 
-      const row = dataSheet.addRow(rowData);
+      dataSheet.addRow(rowData);
+    }
 
-      if (includeProofLinks) {
-        const linkCell = row.getCell(rowData.length);
-        linkCell.value = {
-          text: 'مشاهدة',
-          hyperlink: `https://almotamed.com/proof/${order.proofToken}`,
-        };
-        linkCell.font = { color: { argb: 'FF973131' }, underline: 'single' };
+    stage = 'APPLY_HYPERLINKS';
+    if (includeProofLinks) {
+      const startRow = 2;
+      for (let i = 0; i < filteredOrders.length; i++) {
+        const order = filteredOrders[i];
+        const rowIndex = startRow + i;
+        const colIndex = 10;
+        const cell = dataSheet.getCell(rowIndex, colIndex);
+        cell.value = `https://almotamed.com/proof/${order.proofToken}`;
       }
     }
 
-    dataSheet.eachRow((row, rowNumber) => {
-      if (rowNumber > 1) {
-        row.border = { top: { style: 'thin', color: { argb: 'FFE8D3C4' } }, bottom: { style: 'thin', color: { argb: 'FFE8D3C4' } } };
-        row.alignment = { horizontal: 'right', vertical: 'middle' };
-      }
-    });
-
     stage = 'WRITE_BUFFER';
-    const bufferResult = await workbook.xlsx.writeBuffer();
-    const buffer = Buffer.isBuffer(bufferResult) ? bufferResult : Buffer.from(bufferResult as any);
+    const buffer = await workbook.xlsx.writeBuffer();
 
     stage = 'BUILD_RESPONSE';
     const fileName = `odheyati-proof-export-${new Date().toISOString().split('T')[0]}.xlsx`;
