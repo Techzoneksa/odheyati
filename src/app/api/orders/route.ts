@@ -74,7 +74,7 @@ export async function GET(request: Request) {
     whereClause.proofStatus = status;
   }
 
-  if (platform) {
+  if (platform && platform.trim() !== '') {
     whereClause.platform = platform;
   }
 
