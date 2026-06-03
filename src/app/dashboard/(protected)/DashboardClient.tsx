@@ -216,13 +216,25 @@ export default function DashboardClient() {
     const url = `/api/orders?${queryString}`;
     console.log('fetchOrders request:', url);
 
-    const res = await fetch(url);
-    console.log('fetchOrders response status:', res.status);
-    if (res.ok) {
-      const data = await res.json();
-      console.log('fetchOrders response data:', { ordersCount: data.orders?.length, total: data.total });
-      setOrders(data.orders ?? data);
-      setTotal(data.total ?? 0);
+    try {
+      const res = await fetch(url, { credentials: 'include' });
+      console.log('fetchOrders response status:', res.status);
+      if (res.ok) {
+        const data = await res.json();
+        console.log('fetchOrders response data:', JSON.stringify(data).substring(0, 200));
+        const ordersArray = data.orders ?? data;
+        if (Array.isArray(ordersArray)) {
+          console.log('fetchOrders setting orders, count:', ordersArray.length);
+          setOrders(ordersArray);
+          setTotal(Array.isArray(data.orders) ? (data.total ?? ordersArray.length) : (data.total ?? 0));
+        } else {
+          console.error('fetchOrders data.orders is not array:', typeof ordersArray);
+        }
+      } else {
+        console.error('fetchOrders HTTP error:', res.status, res.statusText);
+      }
+    } catch (err) {
+      console.error('fetchOrders network error:', err);
     }
     setLoading(false);
   }

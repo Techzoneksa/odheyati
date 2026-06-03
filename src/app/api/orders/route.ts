@@ -93,7 +93,7 @@ export async function GET(request: Request) {
       }));
     }
 
-    console.log('ORDERS_DEBUG', { whereClause, page, limit, skip });
+    console.log('ORDERS_DEBUG', { whereClause, page, limit, skip, statusParam: searchParams.get('status'), orderNumberParam: searchParams.get('orderNumber'), mobileParam: searchParams.get('mobile') });
 
     const [orders, total] = await Promise.all([
       prisma.order.findMany({
