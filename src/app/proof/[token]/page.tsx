@@ -1,32 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 
 interface ProofFile {
   id: string;
   type: string;
-  fileName: string;
+  fileName: string | null;
   storageKey: string;
-}
-
-interface OrderItem {
-  id: string;
-  name: string;
-  quantity: number;
-  price: number;
 }
 
 interface Order {
   id: string;
-  orderNumber: string;
+  orderNumber: string | null;
   proofToken: string;
-  customerName: string;
-  customerMobile: string;
-  proofStatus: string;
+  customerName: string | null;
+  customerMobile: string | null;
+  proofStatus: string | null;
   createdAt: string | null;
-  files: ProofFile[];
-  items: OrderItem[];
+  files: ProofFile[] | null;
+  items: any[] | null;
 }
 
 const statusLabels: Record<string, string> = {
@@ -39,9 +32,11 @@ const statusLabels: Record<string, string> = {
   CANCELLED: 'ملغي',
 };
 
-function getStatusMessage(proofStatus: string, hasFiles: boolean, customerName: string): { title: string; message: string } {
+function getSafeStatusMessage(proofStatus: string | null | undefined, hasFiles: boolean, customerName: string): { title: string; message: string } {
   const safeName = customerName || 'عميلنا الكريم';
-  switch (proofStatus) {
+  const status = proofStatus || 'PENDING';
+
+  switch (status) {
     case 'CANCELLED':
       return {
         title: 'الطلب غير متاح',
@@ -79,7 +74,7 @@ function getStatusMessage(proofStatus: string, hasFiles: boolean, customerName: 
   }
 }
 
-function formatDate(dateStr: string | null | undefined): string {
+function formatDateSafe(dateStr: string | null | undefined): string {
   if (!dateStr) return '-';
   try {
     const date = new Date(dateStr);
@@ -92,8 +87,12 @@ function formatDate(dateStr: string | null | undefined): string {
 
 function getSafeCustomerName(name: string | null | undefined): string {
   if (!name) return 'عميلنا الكريم';
-  const firstPart = name.split(' ')[0];
-  return firstPart || 'عميلنا الكريم';
+  try {
+    const firstPart = name.split(' ')[0];
+    return firstPart || 'عميلنا الكريم';
+  } catch {
+    return 'عميلنا الكريم';
+  }
 }
 
 function getSafeOrderNumber(orderNumber: string | null | undefined): string {
@@ -156,20 +155,16 @@ export default function ProofPage({ params }: Props) {
   const [mediaError, setMediaError] = useState(false);
   const [token, setToken] = useState<string>('');
 
-  useEffect(() => {
-    params.then(({ token }) => {
-      setToken(token);
-      fetchOrder(token);
-    });
-  }, []);
-
-  async function fetchOrder(t: string) {
+  const fetchOrder = useCallback(async (t: string) => {
+    let stage = 'INIT';
     try {
+      stage = 'FETCH_ORDER';
       setLoading(true);
       setError(null);
 
-      const res = await fetch(`/api/proof/${t}`);
+      const res = await fetch(`/api/proof/${encodeURIComponent(t)}`);
 
+      stage = 'CHECK_RESPONSE';
       if (!res.ok) {
         if (res.status === 404) {
           setError('لم يتم العثور على التوثيق');
@@ -180,36 +175,52 @@ export default function ProofPage({ params }: Props) {
         return;
       }
 
+      stage = 'PARSE_JSON';
       const data = await res.json();
+
+      stage = 'SET_STATE';
       setOrder(data);
       setLoading(false);
     } catch (err) {
       console.error('PROOF_PAGE_FAILED', {
         digestHint: '2823370080',
-        stage: 'FETCH_ORDER',
-        tokenPresent: Boolean(t)
+        stage,
+        tokenPresent: Boolean(t),
+        tokenPrefix: t?.slice(0, 8)
       });
       setError('حدث خطأ في تحميل التوثيق');
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    const init = async () => {
+      const resolvedParams = await params;
+      const t = resolvedParams.token;
+      setToken(t);
+      await fetchOrder(t);
+    };
+    init();
+  }, [params, fetchOrder]);
 
   if (loading) return <LoadingDisplay />;
   if (error) return <ErrorDisplay message={error} />;
   if (!order) return <ErrorDisplay message="لم يتم العثور على التوثيق" />;
 
-  const images = (order.files || []).filter((f: ProofFile) => f.type === 'IMAGE');
-  const videos = (order.files || []).filter((f: ProofFile) => f.type === 'VIDEO');
+  const files = order.files || [];
+  const images = files.filter((f: ProofFile) => f.type === 'IMAGE');
+  const videos = files.filter((f: ProofFile) => f.type === 'VIDEO');
   const hasFiles = images.length > 0 || videos.length > 0;
 
   const customerName = getSafeCustomerName(order.customerName);
   const orderNumber = getSafeOrderNumber(order.orderNumber);
-  const statusMessage = getStatusMessage(order.proofStatus, hasFiles, customerName);
+  const proofStatus = order.proofStatus || 'PENDING';
+  const statusMessage = getSafeStatusMessage(proofStatus, hasFiles, customerName);
 
-  const showFiles = hasFiles && ['SLAUGHTERED', 'MEDIA_UPLOADED', 'READY', 'VIEWED'].includes(order.proofStatus);
-  const showInProgressMessage = ['PENDING', 'IN_PROGRESS'].includes(order.proofStatus) && !hasFiles;
-  const showSlaughteredMessage = order.proofStatus === 'SLAUGHTERED' && !hasFiles;
-  const showCancelledMessage = order.proofStatus === 'CANCELLED';
+  const showFiles = hasFiles && ['SLAUGHTERED', 'MEDIA_UPLOADED', 'READY', 'VIEWED'].includes(proofStatus);
+  const showInProgressMessage = ['PENDING', 'IN_PROGRESS'].includes(proofStatus) && !hasFiles;
+  const showSlaughteredMessage = proofStatus === 'SLAUGHTERED' && !hasFiles;
+  const showCancelledMessage = proofStatus === 'CANCELLED';
 
   return (
     <main className="min-h-screen px-4 py-8">
@@ -225,13 +236,13 @@ export default function ProofPage({ params }: Props) {
               <h2 className="text-xl font-bold text-text-primary">{statusMessage.title}</h2>
               <p className="text-text-secondary">طلب #{orderNumber}</p>
             </div>
-            <span className={`status-badge status-${(order.proofStatus || 'pending').toLowerCase().replace('_', '-')}`}>
-              {statusLabels[order.proofStatus] || order.proofStatus || 'بانتظار'}
+            <span className={`status-badge status-${proofStatus.toLowerCase().replace('_', '-')}`}>
+              {statusLabels[proofStatus] || proofStatus}
             </span>
           </div>
 
           <p className="text-sm text-text-secondary">
-            تاريخ الطلب: {formatDate(order.createdAt)}
+            تاريخ الطلب: {formatDateSafe(order.createdAt)}
           </p>
         </div>
 
@@ -259,12 +270,12 @@ export default function ProofPage({ params }: Props) {
               <p className="text-text-primary whitespace-pre-line">{statusMessage.message}</p>
             </div>
 
-            {mediaError ? (
+            {mediaError && (
               <div className="card p-6 text-center mb-4">
                 <div className="text-2xl mb-2">⚠️</div>
                 <p className="text-text-secondary text-sm">تعذر تحميل بعض ملفات التوثيق مؤقتًا، حاول لاحقًا.</p>
               </div>
-            ) : null}
+            )}
 
             {images.length > 0 && (
               <div className="card p-6 mb-4">
@@ -282,7 +293,7 @@ export default function ProofPage({ params }: Props) {
                       />
                       <a
                         href={`/api/files/${image.id}`}
-                        download={image.fileName}
+                        download={image.fileName || 'download'}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 hover:opacity-100 transition-opacity rounded-lg"

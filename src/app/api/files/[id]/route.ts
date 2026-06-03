@@ -1,18 +1,43 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { deleteFile } from '@/lib/r2';
+import { getSignedDownloadUrl } from '@/lib/r2';
 
 interface Props {
   params: Promise<{ id: string }>;
 }
 
-export async function DELETE(request: Request, { params }: Props) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+export async function GET(request: Request, { params }: Props) {
+  try {
+    const { id } = await params;
 
+    const file = await prisma.proofFile.findUnique({
+      where: { id },
+    });
+
+    if (!file) {
+      return NextResponse.json({ error: 'File not found' }, { status: 404 });
+    }
+
+    try {
+      const signedUrl = await getSignedDownloadUrl(file.storageKey);
+      return NextResponse.redirect(signedUrl);
+    } catch (urlError) {
+      console.error('SIGNED_URL_ERROR', {
+        stage: 'BUILD_SIGNED_URL',
+        fileIdPresent: Boolean(id)
+      });
+      return NextResponse.json({ error: 'Failed to generate download URL' }, { status: 500 });
+    }
+  } catch (error) {
+    console.error('FILE_API_ERROR', {
+      stage: 'GET_FILE',
+      fileIdPresent: Boolean(params)
+    });
+    return NextResponse.json({ error: 'Failed to fetch file' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request, { params }: Props) {
   const { id } = await params;
 
   const file = await prisma.proofFile.findUnique({
@@ -24,6 +49,7 @@ export async function DELETE(request: Request, { params }: Props) {
   }
 
   try {
+    const { deleteFile } = await import('@/lib/r2');
     await deleteFile(file.storageKey);
   } catch (error) {
     console.error('R2 delete error:', error);
