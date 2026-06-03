@@ -20,6 +20,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  let filteredOrders: any[] = [];
+
   try {
     const { searchParams } = new URL(request.url);
     const proofStatus = searchParams.get('proofStatus') || '';
@@ -69,17 +71,19 @@ export async function GET(request: Request) {
       orderBy: { createdAt: 'desc' },
     });
 
-    let filteredOrders = orders;
+    filteredOrders = orders;
 
     if (mediaFilter === 'with_files') {
-      filteredOrders = filteredOrders.filter(o => o.files.length > 0);
+      filteredOrders = filteredOrders.filter((o: any) => o.files.length > 0);
     } else if (mediaFilter === 'without_files') {
-      filteredOrders = filteredOrders.filter(o => o.files.length === 0);
+      filteredOrders = filteredOrders.filter((o: any) => o.files.length === 0);
     } else if (mediaFilter === 'with_videos') {
-      filteredOrders = filteredOrders.filter(o => o.files.some(f => f.type === 'VIDEO'));
+      filteredOrders = filteredOrders.filter((o: any) => o.files.some((f: any) => f.type === 'VIDEO'));
     } else if (mediaFilter === 'with_images') {
-      filteredOrders = filteredOrders.filter(o => o.files.some(f => f.type === 'IMAGE'));
+      filteredOrders = filteredOrders.filter((o: any) => o.files.some((f: any) => f.type === 'IMAGE'));
     }
+
+    console.error('EXPORT_DEBUG', { orderCount: orders.length, filteredCount: filteredOrders.length });
 
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'أضحيتي';
@@ -101,8 +105,8 @@ export async function GET(request: Request) {
       minute: '2-digit',
     });
 
-    const imagesCount = filteredOrders.filter(o => o.files.some(f => f.type === 'IMAGE')).length;
-    const videosCount = filteredOrders.filter(o => o.files.some(f => f.type === 'VIDEO')).length;
+    const imagesCount = filteredOrders.filter((o: any) => o.files.some((f: any) => f.type === 'IMAGE')).length;
+    const videosCount = filteredOrders.filter((o: any) => o.files.some((f: any) => f.type === 'VIDEO')).length;
     const readyCount = filteredOrders.filter(o => ['READY', 'MEDIA_UPLOADED', 'VIEWED'].includes(o.proofStatus)).length;
     const inProgressCount = filteredOrders.filter(o => ['PENDING', 'IN_PROGRESS'].includes(o.proofStatus)).length;
 
@@ -172,8 +176,8 @@ export async function GET(request: Request) {
     dataSheet.views = [{ state: 'frozen', xSplit: 0, ySplit: 1 }];
 
     for (const order of filteredOrders) {
-      const images = order.files.filter(f => f.type === 'IMAGE').length;
-      const videos = order.files.filter(f => f.type === 'VIDEO').length;
+      const images = order.files.filter((f: any) => f.type === 'IMAGE').length;
+      const videos = order.files.filter((f: any) => f.type === 'VIDEO').length;
       const totalFiles = images + videos;
       const proofStatusText = proofStatusLabels[order.proofStatus] || order.proofStatus;
 
@@ -194,7 +198,7 @@ export async function GET(request: Request) {
       }
 
       if (includePrices) {
-        const totalAmount = order.items.reduce((sum, item) => sum + (item.price || 0), 0);
+        const totalAmount = order.items.reduce((sum: number, item: any) => sum + (item.price || 0), 0);
         rowData.push(totalAmount > 0 ? totalAmount.toFixed(2) : '-');
       }
 
@@ -230,7 +234,26 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    console.error('EXPORT_FAILED:', error instanceof Error ? error.message : 'Unknown error');
-    return NextResponse.json({ error: 'EXPORT_FAILED' }, { status: 500 });
+    let reason = 'UNKNOWN_EXPORT_ERROR';
+
+    if (error instanceof Error) {
+      if (error.message.includes('prisma') || error.message.includes('Prisma')) {
+        reason = 'PRISMA_QUERY_FAILED';
+      } else if (error.message.includes('ExcelJS') || error.message.includes('exceljs') || error.message.includes('workbook')) {
+        reason = 'EXCELJS_WRITE_FAILED';
+      } else if (error.message.includes('writeBuffer') || error.message.includes('buffer')) {
+        reason = 'WORKBOOK_BUILD_FAILED';
+      } else if (error.message.includes('Invalid') || error.message.includes('invalid') || error.message.includes('Date')) {
+        reason = 'INVALID_DATE';
+      }
+    }
+
+    console.error('EXPORT_FAILED', {
+      reason,
+      message: error instanceof Error ? error.message : String(error),
+      count: filteredOrders?.length,
+    });
+
+    return NextResponse.json({ error: 'EXPORT_FAILED', reason }, { status: 500 });
   }
 }

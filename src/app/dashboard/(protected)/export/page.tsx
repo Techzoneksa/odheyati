@@ -36,7 +36,9 @@ export default function ExportPage() {
       });
 
       if (!response.ok) {
-        throw new Error('Export failed');
+        const data = await response.json().catch(() => ({}));
+        const reason = data.reason || 'UNKNOWN';
+        throw new Error(`Export failed: ${reason}`);
       }
 
       const blob = await response.blob();
@@ -48,8 +50,10 @@ export default function ExportPage() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-    } catch {
-      setError('تعذر تصدير الملف، حاول مرة أخرى.');
+    } catch (err: any) {
+      const reasonMatch = err.message.match(/Export failed: (.+)/);
+      const reason = reasonMatch ? reasonMatch[1] : '';
+      setError(reason ? `تعذر تصدير الملف، حاول مرة أخرى.\nسبب الخطأ: ${reason}` : 'تعذر تصدير الملف، حاول مرة أخرى.');
     }
 
     setExporting(false);
