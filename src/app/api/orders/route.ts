@@ -70,11 +70,19 @@ export async function GET(request: Request) {
 
   const whereClause: any = {};
 
-  if (status) {
+  console.error('DEBUG_ORDERS_API', {
+    status,
+    platform,
+    orderNumber,
+    mobile,
+    whereClauseKeys: Object.keys(whereClause)
+  });
+
+  if (status && status !== 'all') {
     whereClause.proofStatus = status;
   }
 
-  if (platform && platform.trim() !== '') {
+  if (platform && platform !== 'all' && platform.trim() !== '') {
     whereClause.platform = platform;
   }
 
@@ -99,6 +107,8 @@ export async function GET(request: Request) {
       files: true,
     },
   });
+
+  console.error('DEBUG_ORDERS_RESULT', { orderCount: orders.length, whereClauseKeys: Object.keys(whereClause) });
 
   return NextResponse.json(orders);
 }
