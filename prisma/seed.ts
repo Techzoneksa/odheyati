@@ -21,10 +21,11 @@ async function main() {
   });
 
   const order = await prisma.order.upsert({
-    where: { orderNumber: 'DEMO-001' },
+    where: { platform_orderNumber: { platform: 'MANUAL', orderNumber: 'DEMO-001' } },
     update: {},
     create: {
       orderNumber: 'DEMO-001',
+      platform: 'MANUAL',
       customerName: 'أحمد محمد',
       customerMobile: '0501234567',
       customerMobileLast4: '4567',

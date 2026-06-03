@@ -7,6 +7,7 @@ import Link from 'next/link';
 interface Order {
   id: string;
   orderNumber: string;
+  platform: string;
   customerName: string;
   customerMobile: string;
   sallaStatus: string | null;
@@ -135,6 +136,12 @@ const statusColors: Record<string, string> = {
   CANCELLED: 'bg-red-100 text-red-800',
 };
 
+const platformLabels: Record<string, { label: string; color: string }> = {
+  SALLA: { label: 'سلة', color: 'bg-blue-100 text-blue-800' },
+  SHOPIFY: { label: 'Shopify', color: 'bg-green-100 text-green-800' },
+  MANUAL: { label: 'يدوي', color: 'bg-gray-100 text-gray-800' },
+};
+
 export default function DashboardClient() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -143,6 +150,7 @@ export default function DashboardClient() {
   const [search, setSearch] = useState('');
   const [mobileSearch, setMobileSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [platformFilter, setPlatformFilter] = useState('');
   const [logoutLoading, setLogoutLoading] = useState(false);
 
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -188,6 +196,7 @@ export default function DashboardClient() {
     setLoading(true);
     const params = new URLSearchParams();
     if (statusFilter) params.set('status', statusFilter);
+    if (platformFilter) params.set('platform', platformFilter);
     if (search) params.set('orderNumber', search);
     if (mobileSearch) params.set('mobile', mobileSearch);
 
@@ -507,6 +516,20 @@ export default function DashboardClient() {
                 <option value="CANCELLED">ملغي</option>
               </select>
             </div>
+
+            <div>
+              <label className="label">المصدر</label>
+              <select
+                value={platformFilter}
+                onChange={(e) => setPlatformFilter(e.target.value)}
+                className="input-field"
+              >
+                <option value="">الكل</option>
+                <option value="SALLA">سلة</option>
+                <option value="SHOPIFY">Shopify</option>
+                <option value="MANUAL">يدوي</option>
+              </select>
+            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3">
@@ -553,6 +576,7 @@ export default function DashboardClient() {
               <table className="w-full min-w-[800px]">
                 <thead className="bg-background-beige">
                   <tr>
+                    <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap">المصدر</th>
                     <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap">رقم الطلب</th>
                     <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap">العميل</th>
                     <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap hidden sm:table-cell">الجوال</th>
@@ -570,6 +594,11 @@ export default function DashboardClient() {
 
                     return (
                       <tr key={order.id} className="hover:bg-background-cream/50">
+                        <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
+                          <span className={`px-2 py-1 rounded text-xs ${platformLabels[order.platform]?.color || 'bg-gray-100 text-gray-800'}`}>
+                            {platformLabels[order.platform]?.label || order.platform}
+                          </span>
+                        </td>
                         <td className="px-3 sm:px-4 py-3 font-mono text-xs sm:text-sm whitespace-nowrap" dir="ltr">{order.orderNumber}</td>
                         <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm whitespace-nowrap">{order.customerName}</td>
                         <td className="px-3 sm:px-4 py-3 font-mono text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell" dir="ltr">{order.customerMobile}</td>

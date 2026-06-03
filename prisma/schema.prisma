@@ -12,6 +12,12 @@ enum Role {
   EMPLOYEE
 }
 
+enum Platform {
+  SALLA
+  SHOPIFY
+  MANUAL
+}
+
 enum ProofStatus {
   PENDING
   IN_PROGRESS
@@ -45,7 +51,8 @@ model User {
 model Order {
   id               String      @id @default(cuid())
   sallaOrderId     String?     @unique
-  orderNumber      String      @unique
+  orderNumber      String
+  platform         Platform    @default(SALLA)
   customerName     String
   customerMobile   String
   customerMobileLast4 String
@@ -60,6 +67,7 @@ model Order {
   files   ProofFile[]
   events  ProofEvent[]
 
+  @@unique([platform, orderNumber])
   @@map("orders")
 }
 

@@ -66,11 +66,16 @@ export async function GET(request: Request) {
   const orderNumber = searchParams.get('orderNumber');
   const mobile = searchParams.get('mobile');
   const status = searchParams.get('status');
+  const platform = searchParams.get('platform');
 
   const whereClause: any = {};
 
   if (status) {
     whereClause.proofStatus = status;
+  }
+
+  if (platform) {
+    whereClause.platform = platform;
   }
 
   if (orderNumber) {

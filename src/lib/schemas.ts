@@ -10,6 +10,10 @@ export const mobileLookupSchema = z.object({
   mobile: z.string().min(7, 'رقم الجوال غير صالح'),
 });
 
+export const emailLookupSchema = z.object({
+  email: z.string().email('إيميل غير صالح'),
+});
+
 export const proofStatusSchema = z.object({
   proofStatus: z.enum(['PENDING', 'IN_PROGRESS', 'SLAUGHTERED', 'MEDIA_UPLOADED', 'READY', 'VIEWED', 'CANCELLED']),
 });

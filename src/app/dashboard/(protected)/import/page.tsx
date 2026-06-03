@@ -45,13 +45,14 @@ export default function ImportPage() {
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<ImportReport | null>(null);
   const [error, setError] = useState('');
+  const [platform, setPlatform] = useState<'SALLA' | 'SHOPIFY'>('SALLA');
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
 
-    if (!selectedFile.name.endsWith('.xlsx') && !selectedFile.name.endsWith('.xls')) {
-      setError('يرجى اختيار ملف Excel بصيغة .xlsx');
+    if (!selectedFile.name.endsWith('.xlsx') && !selectedFile.name.endsWith('.xls') && !selectedFile.name.endsWith('.csv')) {
+      setError('يرجى اختيار ملف Excel أو CSV');
       return;
     }
 
@@ -74,15 +75,31 @@ export default function ImportPage() {
         const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as string[][];
 
         const headers = jsonData[0].map(h => h.toString().trim());
-        
-        const orderCol = headers.findIndex(h => h.includes('رقم الطلب') || h.includes('order'));
-        const statusCol = headers.findIndex(h => h.includes('حالة') || h.includes('status'));
-        const nameCol = headers.findIndex(h => h.includes('اسم') || h.includes('name'));
-        const mobileCol = headers.findIndex(h => h.includes('جوال') || h.includes('mobile') || h.includes('phone'));
-        const amountCol = headers.findIndex(h => h.includes('مبلغ') || h.includes('amount'));
+
+        let orderCol = -1;
+        let statusCol = -1;
+        let nameCol = -1;
+        let mobileCol = -1;
+        let amountCol = -1;
+
+        if (platform === 'SALLA') {
+          orderCol = headers.findIndex(h => h.includes('رقم الطلب') || h.includes('order'));
+          statusCol = headers.findIndex(h => h.includes('حالة') || h.includes('status'));
+          nameCol = headers.findIndex(h => h.includes('اسم') || h.includes('name'));
+          mobileCol = headers.findIndex(h => h.includes('جوال') || h.includes('mobile') || h.includes('phone'));
+          amountCol = headers.findIndex(h => h.includes('مبلغ') || h.includes('amount'));
+        } else if (platform === 'SHOPIFY') {
+          orderCol = headers.findIndex(h => h.includes('Name') || h.includes('#'));
+          statusCol = headers.findIndex(h => h.includes('Financial Status') || h.includes('financial'));
+          nameCol = headers.findIndex(h => h.includes('Billing Name') || h.includes('billing'));
+          mobileCol = headers.findIndex(h => h.includes('Billing Phone') || h.includes('phone'));
+          amountCol = headers.findIndex(h => h.includes('Subtotal') || h.includes('subtotal'));
+        }
 
         if (orderCol === -1 || nameCol === -1 || mobileCol === -1) {
-          setError('الملف لا يحتوي على الأعمدة المطلوبة (رقم الطلب، اسم العميل، رقم الجوال)');
+          setError(platform === 'SALLA'
+            ? 'الملف لا يحتوي على الأعمدة المطلوبة (رقم الطلب، اسم العميل، رقم الجوال)'
+            : 'الملف لا يحتوي على الأعمدة المطلوبة (Name, Billing Name, Billing Phone)');
           return;
         }
 
@@ -116,6 +133,7 @@ export default function ImportPage() {
     try {
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('platform', platform);
 
       const res = await fetch('/api/import', {
         method: 'POST',
@@ -147,31 +165,45 @@ export default function ImportPage() {
             <a href="/dashboard" className="text-text-secondary hover:text-primary">
               ← العودة
             </a>
-            <h1 className="text-xl font-bold text-text-primary">استيراد طلبات من سلة</h1>
+            <h1 className="text-xl font-bold text-text-primary">استيراد طلبات</h1>
           </div>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-6">
         <div className="card p-6 mb-6">
-          <h2 className="text-lg font-semibold text-text-primary mb-4">رفع ملف Excel</h2>
+          <h2 className="text-lg font-semibold text-text-primary mb-4">مصدر الملف</h2>
           
-          <div className="mb-4">
-            <label className="btn-secondary cursor-pointer inline-flex items-center">
-              <span>{file ? file.name : 'اختر ملف Excel'}</span>
+          <div className="flex gap-4 mb-4">
+            <label className={`flex items-center gap-2 cursor-pointer px-4 py-2 rounded-lg border ${platform === 'SALLA' ? 'border-primary bg-primary/10 text-primary' : 'border-border text-text-secondary'}`}>
               <input
-                type="file"
-                accept=".xlsx,.xls"
-                onChange={handleFileSelect}
+                type="radio"
+                name="platform"
+                value="SALLA"
+                checked={platform === 'SALLA'}
+                onChange={() => { setPlatform('SALLA'); setPreview([]); setFile(null); setResult(null); }}
                 className="hidden"
               />
+              سلة
+            </label>
+            <label className={`flex items-center gap-2 cursor-pointer px-4 py-2 rounded-lg border ${platform === 'SHOPIFY' ? 'border-primary bg-primary/10 text-primary' : 'border-border text-text-secondary'}`}>
+              <input
+                type="radio"
+                name="platform"
+                value="SHOPIFY"
+                checked={platform === 'SHOPIFY'}
+                onChange={() => { setPlatform('SHOPIFY'); setPreview([]); setFile(null); setResult(null); }}
+                className="hidden"
+              />
+              Shopify
             </label>
           </div>
 
           <p className="text-sm text-text-secondary mb-4">
-            الأعمدة المطلوبة: رقم الطلب، اسم العميل، رقم الجوال
-            <br />
-            الأعمدة الاختيارية: حالة الطلب، المبلغ
+            {platform === 'SALLA' 
+              ? 'الأعمدة المطلوبة: رقم الطلب، اسم العميل، رقم الجوال. الأعمدة الاختيارية: حالة الطلب، المبلغ'
+              : 'الأعمدة المطلوبة: Name, Billing Name, Billing Phone. الأعمدة الاختيارية: Email, Financial Status, Subtotal'
+            }
           </p>
 
           {error && (

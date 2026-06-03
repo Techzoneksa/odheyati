@@ -81,6 +81,7 @@ export async function GET(request: Request) {
     OR: [
       { orderNumber: { contains: query, mode: 'insensitive' } },
       { customerName: { contains: query, mode: 'insensitive' } },
+      { customerEmail: { contains: query, mode: 'insensitive' } },
     ],
   };
 

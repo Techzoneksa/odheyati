@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { mobileLookupSchema } from '@/lib/schemas';
+import { mobileLookupSchema, emailLookupSchema } from '@/lib/schemas';
 
 const rateLimit = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT = 10;
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   const now = Date.now();
 
   const clientData = rateLimit.get(ip);
-  
+
   if (clientData) {
     if (now < clientData.resetTime) {
       if (clientData.count >= RATE_LIMIT) {
@@ -47,6 +47,52 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
+
+    if (body.email) {
+      const parsed = emailLookupSchema.safeParse(body);
+
+      if (!parsed.success) {
+        return NextResponse.json(
+          { error: 'إيميل غير صالح' },
+          { status: 400 }
+        );
+      }
+
+      const { email } = parsed.data;
+
+      const orders = await prisma.order.findMany({
+        where: {
+          customerEmail: email,
+          proofStatus: {
+            not: 'CANCELLED',
+          },
+        },
+        select: {
+          id: true,
+          orderNumber: true,
+          proofStatus: true,
+          proofToken: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (orders.length === 0) {
+        return NextResponse.json({ error: 'لم نجد توثيقًا' });
+      }
+
+      return NextResponse.json({
+        found: true,
+        orders: orders.map(o => ({
+          id: o.id,
+          orderNumber: o.orderNumber,
+          proofStatus: o.proofStatus,
+          createdAt: o.createdAt.toISOString(),
+          proofToken: o.proofToken,
+        }))
+      });
+    }
+
     const parsed = mobileLookupSchema.safeParse(body);
 
     if (!parsed.success) {
@@ -81,8 +127,8 @@ export async function POST(request: Request) {
     }
 
     if (orders.length === 1) {
-      return NextResponse.json({ 
-        found: true, 
+      return NextResponse.json({
+        found: true,
         token: orders[0].proofToken,
         orders: orders.map(o => ({
           id: o.id,
@@ -94,7 +140,7 @@ export async function POST(request: Request) {
       });
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       found: true,
       orders: orders.map(o => ({
         id: o.id,
@@ -105,7 +151,7 @@ export async function POST(request: Request) {
       }))
     });
   } catch (error) {
-    console.error('Lookup error:', error);
+    console.error('Lookup error');
     return NextResponse.json(
       { error: 'خطأ في الخادم' },
       { status: 500 }

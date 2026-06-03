@@ -75,7 +75,7 @@ export async function POST(request: Request) {
 
   try {
     await prisma.order.upsert({
-      where: { orderNumber },
+      where: { platform_orderNumber: { platform: 'SALLA', orderNumber } },
       update: {
         customerName,
         customerMobile: mobile,
@@ -86,6 +86,7 @@ export async function POST(request: Request) {
       create: {
         sallaOrderId: data.id?.toString(),
         orderNumber,
+        platform: 'SALLA',
         customerName,
         customerMobile: mobile,
         customerMobileLast4: mobileLast4,
@@ -96,7 +97,7 @@ export async function POST(request: Request) {
 
     if (data.items && Array.isArray(data.items)) {
       const existingOrder = await prisma.order.findUnique({
-        where: { orderNumber },
+        where: { platform_orderNumber: { platform: 'SALLA', orderNumber } },
         include: { items: true },
       });
 
