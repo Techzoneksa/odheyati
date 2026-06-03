@@ -152,8 +152,6 @@ export default function DashboardClient() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [platformFilter, setPlatformFilter] = useState('all');
   const [logoutLoading, setLogoutLoading] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [total, setTotal] = useState(0);
 
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [mobileResults, setMobileResults] = useState<SearchResult[]>([]);
@@ -169,8 +167,7 @@ export default function DashboardClient() {
 
   useEffect(() => {
     fetchStats();
-    setCurrentPage(1);
-    fetchOrders(1);
+    fetchOrders();
   }, []);
 
   useEffect(() => {
@@ -195,13 +192,16 @@ export default function DashboardClient() {
     }
   }
 
-  async function fetchOrders(page = 1) {
+  async function fetchOrders() {
     setLoading(true);
     const params = new URLSearchParams();
-    params.set('page', page.toString());
 
     if (statusFilter && statusFilter !== 'all') {
       params.set('status', statusFilter);
+    }
+
+    if (platformFilter && platformFilter !== 'all') {
+      params.set('platform', platformFilter);
     }
 
     if (search && search.trim() !== '') {
@@ -213,28 +213,12 @@ export default function DashboardClient() {
     }
 
     const queryString = params.toString();
-    const url = `/api/orders?${queryString}`;
-    console.log('fetchOrders request:', url);
+    const url = queryString ? `/api/orders?${queryString}` : '/api/orders';
 
-    try {
-      const res = await fetch(url, { credentials: 'include' });
-      console.log('fetchOrders response status:', res.status);
-      if (res.ok) {
-        const data = await res.json();
-        console.log('fetchOrders response data:', JSON.stringify(data).substring(0, 200));
-        const ordersArray = data.orders ?? data;
-        if (Array.isArray(ordersArray)) {
-          console.log('fetchOrders setting orders, count:', ordersArray.length);
-          setOrders(ordersArray);
-          setTotal(Array.isArray(data.orders) ? (data.total ?? ordersArray.length) : (data.total ?? 0));
-        } else {
-          console.error('fetchOrders data.orders is not array:', typeof ordersArray);
-        }
-      } else {
-        console.error('fetchOrders HTTP error:', res.status, res.statusText);
-      }
-    } catch (err) {
-      console.error('fetchOrders network error:', err);
+    const res = await fetch(url);
+    if (res.ok) {
+      const data = await res.json();
+      setOrders(data);
     }
     setLoading(false);
   }
@@ -304,11 +288,10 @@ export default function DashboardClient() {
   function handleSearchKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter') {
       e.preventDefault();
-      setCurrentPage(1);
       if (searchResults.length > 0) {
         router.push(`/dashboard/orders/${searchResults[0].id}`);
       } else {
-        fetchOrders(1);
+        fetchOrders();
       }
       setShowSearchDropdown(false);
     }
@@ -317,11 +300,10 @@ export default function DashboardClient() {
   function handleMobileKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter') {
       e.preventDefault();
-      setCurrentPage(1);
       if (mobileResults.length > 0) {
         router.push(`/dashboard/orders/${mobileResults[0].id}`);
       } else {
-        fetchOrders(1);
+        fetchOrders();
       }
       setShowMobileDropdown(false);
     }
@@ -329,10 +311,9 @@ export default function DashboardClient() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setCurrentPage(1);
     setShowSearchDropdown(false);
     setShowMobileDropdown(false);
-    await fetchOrders(1);
+    await fetchOrders();
   }
 
   function handleClear() {
@@ -344,8 +325,7 @@ export default function DashboardClient() {
     setMobileResults([]);
     setShowSearchDropdown(false);
     setShowMobileDropdown(false);
-    setCurrentPage(1);
-    fetchOrders(1);
+    fetchOrders();
   }
 
   async function handleLogout() {
@@ -357,7 +337,8 @@ export default function DashboardClient() {
   const filteredOrders = orders;
   const hasActiveFilters = (search && search.trim() !== '') ||
     (mobileSearch && mobileSearch.trim() !== '') ||
-    (statusFilter && statusFilter !== 'all');
+    (statusFilter && statusFilter !== 'all') ||
+    (platformFilter && platformFilter !== 'all');
 
   return (
     <div className="min-h-screen bg-background-cream">
@@ -555,6 +536,20 @@ export default function DashboardClient() {
                 <option value="CANCELLED">ملغي</option>
               </select>
             </div>
+
+            <div>
+              <label className="label">المصدر</label>
+              <select
+                value={platformFilter}
+                onChange={(e) => setPlatformFilter(e.target.value)}
+                className="input-field"
+              >
+                <option value="all">الكل</option>
+                <option value="SALLA">سلة</option>
+                <option value="SHOPIFY">Shopify</option>
+                <option value="MANUAL">يدوي</option>
+              </select>
+            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3">
@@ -606,6 +601,7 @@ export default function DashboardClient() {
                 <table className="w-full min-w-[800px]">
                   <thead className="bg-background-beige">
                     <tr>
+                      <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap">المصدر</th>
                       <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap">رقم الطلب</th>
                       <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap">العميل</th>
                       <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap hidden sm:table-cell">الجوال</th>
@@ -623,6 +619,11 @@ export default function DashboardClient() {
 
                       return (
                         <tr key={order.id} className="hover:bg-background-cream/50">
+                          <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
+                            <span className={`px-2 py-1 rounded text-xs ${platformLabels[order.platform]?.color || 'bg-gray-100 text-gray-800'}`}>
+                              {platformLabels[order.platform]?.label || order.platform}
+                            </span>
+                          </td>
                           <td className="px-3 sm:px-4 py-3 font-mono text-xs sm:text-sm whitespace-nowrap" dir="ltr">{order.orderNumber}</td>
                           <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm whitespace-nowrap">{order.customerName}</td>
                           <td className="px-3 sm:px-4 py-3 font-mono text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell" dir="ltr">{order.customerMobile}</td>
@@ -656,26 +657,6 @@ export default function DashboardClient() {
                     })}
                   </tbody>
                 </table>
-
-                {total > 50 && (
-                  <div className="flex justify-center gap-2 mt-4">
-                    <button
-                      disabled={currentPage === 1}
-                      onClick={() => { setCurrentPage(p => p - 1); fetchOrders(currentPage - 1); }}
-                      className="px-3 py-1 rounded border border-border text-sm hover:bg-background-cream disabled:opacity-50"
-                    >
-                      السابق
-                    </button>
-                    <span className="px-3 py-1">{currentPage} / {Math.ceil(total / 50)}</span>
-                    <button
-                      disabled={currentPage >= Math.ceil(total / 50)}
-                      onClick={() => { setCurrentPage(p => p + 1); fetchOrders(currentPage + 1); }}
-                      className="px-3 py-1 rounded border border-border text-sm hover:bg-background-cream disabled:opacity-50"
-                    >
-                      التالي
-                    </button>
-                  </div>
-                )}
               </div>
             )}
           </div>

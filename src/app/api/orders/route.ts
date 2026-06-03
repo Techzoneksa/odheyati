@@ -57,62 +57,50 @@ function normalizeMobileForSearch(mobile: string): string[] {
 }
 
 export async function GET(request: Request) {
-  try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(request.url);
-    const orderNumber = searchParams.get('orderNumber');
-    const mobile = searchParams.get('mobile');
-    const status = searchParams.get('status');
-
-    const pageParam = searchParams.get('page');
-    const page = pageParam ? parseInt(pageParam) : 1;
-    const limit = 50;
-    const skip = (page - 1) * limit;
-
-    const whereClause: any = {};
-
-    if (status && status !== 'all' && status !== 'الكل' && status.trim() !== '') {
-      whereClause.proofStatus = status;
-    }
-
-    if (orderNumber) {
-      whereClause.orderNumber = {
-        contains: orderNumber.toString(),
-        mode: 'insensitive',
-      };
-    }
-
-    if (mobile) {
-      const mobileVariations = normalizeMobileForSearch(mobile);
-      whereClause.OR = mobileVariations.map(m => ({
-        customerMobile: { contains: m },
-      }));
-    }
-
-    console.log('ORDERS_DEBUG', { whereClause, page, limit, skip, statusParam: searchParams.get('status'), orderNumberParam: searchParams.get('orderNumber'), mobileParam: searchParams.get('mobile') });
-
-    const [orders, total] = await Promise.all([
-      prisma.order.findMany({
-        where: whereClause,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          files: true,
-        },
-        take: limit,
-        skip: skip,
-      }),
-      prisma.order.count({
-        where: whereClause,
-      }),
-    ]);
-
-    return NextResponse.json({ orders, total, page, limit });
-  } catch (error) {
-    console.error('ORDERS_API_ERROR', error);
-    return NextResponse.json({ error: 'Failed to fetch orders', details: error instanceof Error ? error.message : String(error) }, { status: 500 });
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const { searchParams } = new URL(request.url);
+  const orderNumber = searchParams.get('orderNumber');
+  const mobile = searchParams.get('mobile');
+  const status = searchParams.get('status');
+  const platform = searchParams.get('platform');
+
+  const whereClause: any = {};
+
+  const ignoreValues = ['all', 'الكل', '', null, undefined];
+
+  if (status && !ignoreValues.includes(status)) {
+    whereClause.proofStatus = status;
+  }
+
+  if (platform && !ignoreValues.includes(platform) && platform.trim() !== '') {
+    whereClause.platform = platform;
+  }
+
+  if (orderNumber) {
+    whereClause.orderNumber = {
+      contains: orderNumber.toString(),
+      mode: 'insensitive',
+    };
+  }
+
+  if (mobile) {
+    const mobileVariations = normalizeMobileForSearch(mobile);
+    whereClause.OR = mobileVariations.map(m => ({
+      customerMobile: { contains: m },
+    }));
+  }
+
+  const orders = await prisma.order.findMany({
+    where: Object.keys(whereClause).length > 0 ? whereClause : undefined,
+    orderBy: { createdAt: 'desc' },
+    include: {
+      files: true,
+    },
+  });
+
+  return NextResponse.json(orders);
 }
