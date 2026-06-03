@@ -102,11 +102,5 @@ export async function GET(request: Request) {
     },
   });
 
-  console.error('ORDERS_API_DEBUG', {
-    orderCount: orders.length,
-    whereClause,
-    hasWhere: Object.keys(whereClause).length > 0
-  });
-
   return NextResponse.json(orders);
 }

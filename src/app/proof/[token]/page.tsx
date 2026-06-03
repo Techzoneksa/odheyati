@@ -188,29 +188,13 @@ export default function ProofPage({ params }: Props) {
   const [token, setToken] = useState<string>('');
 
   const fetchOrder = useCallback(async (t: string) => {
-    let stage = 'INIT';
     try {
-      stage = 'FETCH_ORDER';
       setLoading(true);
       setError(null);
       setErrorDetails(null);
 
-      console.error('PROOF_PAGE_DEBUG', {
-        digestHint: '2996052376',
-        stage,
-        token: t
-      });
-
       const res = await fetch(`/api/proof/${encodeURIComponent(t)}`);
 
-      console.error('PROOF_PAGE_DEBUG', {
-        stage: 'RESPONSE_RECEIVED',
-        status: res.status,
-        ok: res.ok,
-        url: `/api/proof/${encodeURIComponent(t)}`
-      });
-
-      stage = 'CHECK_RESPONSE';
       if (!res.ok) {
         if (res.status === 404) {
           setError('لم يتم العثور على التوثيق');
@@ -223,24 +207,10 @@ export default function ProofPage({ params }: Props) {
         return;
       }
 
-      stage = 'PARSE_JSON';
       const data = await res.json();
-
-      console.error('PROOF_PAGE_DEBUG', {
-        stage: 'DATA_PARSED',
-        hasData: !!data,
-        orderId: data?.id
-      });
-
-      stage = 'SET_STATE';
       setOrder(data);
       setLoading(false);
     } catch (err) {
-      console.error('PROOF_PAGE_ERROR', {
-        digestHint: '2996052376',
-        stage,
-        errorMessage: err instanceof Error ? err.message : String(err)
-      });
       setError('حدث خطأ في تحميل التوثيق');
       setErrorDetails(err instanceof Error ? err.message : String(err));
       setLoading(false);
