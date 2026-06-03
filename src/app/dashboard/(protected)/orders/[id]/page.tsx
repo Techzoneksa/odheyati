@@ -42,12 +42,37 @@ export default async function OrderDetailsPage({ params }: Props) {
     notFound();
   }
 
-  const filesWithUrls = await Promise.all(
-    order.files.map(async (file) => ({
-      ...file,
-      url: await getSignedDownloadUrl(file.storageKey),
-    }))
-  );
+  const rawFiles = order.files;
+  type FileWithUrl = {
+    id: string;
+    createdAt: Date;
+    type: "IMAGE" | "VIDEO";
+    orderId: string;
+    storageKey: string;
+    fileName: string;
+    mimeType: string;
+    size: number;
+    sortOrder: number;
+    uploadedById: string | null;
+    url: string;
+  };
+  let filesWithUrls: FileWithUrl[] = [];
+
+  try {
+    filesWithUrls = await Promise.all(
+      rawFiles.map(async (file): Promise<FileWithUrl> => ({
+        ...file,
+        url: await getSignedDownloadUrl(file.storageKey),
+      }))
+    );
+  } catch (urlError) {
+    console.error('SIGNED_URL_ERROR', {
+      orderId: id,
+      fileId: rawFiles.map(f => f.id),
+      errorMessage: urlError instanceof Error ? urlError.message : String(urlError)
+    });
+    filesWithUrls = rawFiles.map(file => ({ ...file, url: '' }));
+  }
 
   return (
     <OrderDetailsClient

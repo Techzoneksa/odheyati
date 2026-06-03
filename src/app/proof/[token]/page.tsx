@@ -99,7 +99,21 @@ function getSafeOrderNumber(orderNumber: string | null | undefined): string {
   return orderNumber || '-';
 }
 
-function ErrorDisplay({ message }: { message: string }) {
+function ErrorDisplay({ message, token, errorDetails }: { message: string; token?: string; errorDetails?: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    if (token) {
+      try {
+        await navigator.clipboard.writeText(token);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch {
+        // clipboard not available
+      }
+    }
+  };
+
   return (
     <main className="min-h-screen px-4 py-8">
       <div className="max-w-2xl mx-auto">
@@ -110,6 +124,23 @@ function ErrorDisplay({ message }: { message: string }) {
         <div className="card p-6 text-center">
           <div className="text-4xl mb-4">⚠️</div>
           <p className="text-text-primary font-medium">{message}</p>
+          {token && (
+            <div className="mt-4 p-3 bg-background-cream rounded-lg">
+              <p className="text-sm text-text-secondary mb-2">رقم التوثيق:</p>
+              <p className="font-mono text-sm text-text-primary dir-ltr">{token}</p>
+              <button
+                onClick={handleCopy}
+                className="mt-2 text-xs text-primary hover:underline"
+              >
+                {copied ? 'تم النسخ!' : 'نسخ رقم التوثيق'}
+              </button>
+            </div>
+          )}
+          {errorDetails && process.env.NODE_ENV === 'development' && (
+            <div className="mt-4 p-3 bg-red-50 rounded-lg text-right">
+              <p className="text-xs text-red-600 font-mono break-all">{errorDetails}</p>
+            </div>
+          )}
           <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
             <Link
               href="/track"
@@ -152,6 +183,7 @@ export default function ProofPage({ params }: Props) {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [mediaError, setMediaError] = useState(false);
   const [token, setToken] = useState<string>('');
 
@@ -161,15 +193,31 @@ export default function ProofPage({ params }: Props) {
       stage = 'FETCH_ORDER';
       setLoading(true);
       setError(null);
+      setErrorDetails(null);
+
+      console.error('PROOF_PAGE_DEBUG', {
+        digestHint: '2996052376',
+        stage,
+        token: t
+      });
 
       const res = await fetch(`/api/proof/${encodeURIComponent(t)}`);
+
+      console.error('PROOF_PAGE_DEBUG', {
+        stage: 'RESPONSE_RECEIVED',
+        status: res.status,
+        ok: res.ok,
+        url: `/api/proof/${encodeURIComponent(t)}`
+      });
 
       stage = 'CHECK_RESPONSE';
       if (!res.ok) {
         if (res.status === 404) {
           setError('لم يتم العثور على التوثيق');
         } else {
+          const errorData = await res.json().catch(() => ({}));
           setError('حدث خطأ في تحميل التوثيق');
+          setErrorDetails(errorData.details || errorData.error || `HTTP ${res.status}`);
         }
         setLoading(false);
         return;
@@ -178,17 +226,23 @@ export default function ProofPage({ params }: Props) {
       stage = 'PARSE_JSON';
       const data = await res.json();
 
+      console.error('PROOF_PAGE_DEBUG', {
+        stage: 'DATA_PARSED',
+        hasData: !!data,
+        orderId: data?.id
+      });
+
       stage = 'SET_STATE';
       setOrder(data);
       setLoading(false);
     } catch (err) {
-      console.error('PROOF_PAGE_FAILED', {
-        digestHint: '2823370080',
+      console.error('PROOF_PAGE_ERROR', {
+        digestHint: '2996052376',
         stage,
-        tokenPresent: Boolean(t),
-        tokenPrefix: t?.slice(0, 8)
+        errorMessage: err instanceof Error ? err.message : String(err)
       });
       setError('حدث خطأ في تحميل التوثيق');
+      setErrorDetails(err instanceof Error ? err.message : String(err));
       setLoading(false);
     }
   }, []);
@@ -204,8 +258,8 @@ export default function ProofPage({ params }: Props) {
   }, [params, fetchOrder]);
 
   if (loading) return <LoadingDisplay />;
-  if (error) return <ErrorDisplay message={error} />;
-  if (!order) return <ErrorDisplay message="لم يتم العثور على التوثيق" />;
+  if (error) return <ErrorDisplay message={error} token={token} errorDetails={errorDetails || undefined} />;
+  if (!order) return <ErrorDisplay message="لم يتم العثور على التوثيق" token={token} />;
 
   const files = order.files || [];
   const images = files.filter((f: ProofFile) => f.type === 'IMAGE');
