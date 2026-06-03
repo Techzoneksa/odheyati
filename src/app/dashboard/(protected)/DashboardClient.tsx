@@ -214,10 +214,13 @@ export default function DashboardClient() {
 
     const queryString = params.toString();
     const url = `/api/orders?${queryString}`;
+    console.log('fetchOrders request:', url);
 
     const res = await fetch(url);
+    console.log('fetchOrders response status:', res.status);
     if (res.ok) {
       const data = await res.json();
+      console.log('fetchOrders response data:', { ordersCount: data.orders?.length, total: data.total });
       setOrders(data.orders ?? data);
       setTotal(data.total ?? 0);
     }

@@ -93,9 +93,11 @@ export async function GET(request: Request) {
       }));
     }
 
+    console.log('ORDERS_DEBUG', { whereClause, page, limit, skip });
+
     const [orders, total] = await Promise.all([
       prisma.order.findMany({
-        where: Object.keys(whereClause).length > 0 ? whereClause : undefined,
+        where: whereClause,
         orderBy: { createdAt: 'desc' },
         include: {
           files: true,
@@ -104,7 +106,7 @@ export async function GET(request: Request) {
         skip: skip,
       }),
       prisma.order.count({
-        where: Object.keys(whereClause).length > 0 ? whereClause : undefined,
+        where: whereClause,
       }),
     ]);
 
