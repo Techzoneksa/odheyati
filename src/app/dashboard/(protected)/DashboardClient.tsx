@@ -196,6 +196,14 @@ export default function DashboardClient() {
     setLoading(true);
     const params = new URLSearchParams();
 
+    console.error('DASHBOARD_DEBUG', {
+      stage: 'FETCH_START',
+      statusFilter,
+      platformFilter,
+      search,
+      mobileSearch
+    });
+
     if (statusFilter && statusFilter !== 'all') {
       params.set('status', statusFilter);
     }
@@ -215,10 +223,30 @@ export default function DashboardClient() {
     const queryString = params.toString();
     const url = queryString ? `/api/orders?${queryString}` : '/api/orders';
 
+    console.error('DASHBOARD_DEBUG', {
+      stage: 'API_REQUEST',
+      url
+    });
+
     const res = await fetch(url);
+    console.error('DASHBOARD_DEBUG', {
+      stage: 'API_RESPONSE',
+      status: res.status,
+      ok: res.ok
+    });
+
     if (res.ok) {
       const data = await res.json();
+      console.error('DASHBOARD_DEBUG', {
+        stage: 'DATA_RECEIVED',
+        dataLength: data?.length
+      });
       setOrders(data);
+    } else {
+      console.error('DASHBOARD_DEBUG', {
+        stage: 'API_ERROR',
+        status: res.status
+      });
     }
     setLoading(false);
   }
