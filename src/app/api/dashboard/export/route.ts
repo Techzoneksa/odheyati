@@ -143,7 +143,7 @@ export async function GET(request: Request) {
     ];
 
     if (includeProofLinks) {
-      headers.push('مشاهدة التوثيق');
+      headers.push('رابط المشاهدة');
     }
 
     if (includePrices) {
@@ -151,30 +151,6 @@ export async function GET(request: Request) {
     }
 
     dataSheet.addRow(headers);
-
-    dataSheet.getRow(1).font = { bold: true, size: 12 };
-    dataSheet.getRow(1).alignment = { horizontal: 'right', vertical: 'middle' };
-
-    dataSheet.columns = [
-      { width: 15 },
-      { width: 20 },
-      { width: 15 },
-      { width: 18 },
-      { width: 18 },
-      { width: 15 },
-      { width: 12 },
-      { width: 12 },
-      { width: 12 },
-    ];
-
-    if (includeProofLinks) {
-      dataSheet.columns.push({ width: 15 });
-    }
-    if (includePrices) {
-      dataSheet.columns.push({ width: 12 });
-    }
-
-    dataSheet.views = [{ state: 'frozen', xSplit: 0, ySplit: 1 }];
 
     stage = 'FILL_DATA_SHEET_ROWS';
     for (const order of filteredOrders) {
@@ -196,7 +172,7 @@ export async function GET(request: Request) {
       ];
 
       if (includeProofLinks) {
-        rowData.push('مشاهدة');
+        rowData.push(`https://almotamed.com/proof/${order.proofToken}`);
       }
 
       if (includePrices) {
@@ -205,18 +181,6 @@ export async function GET(request: Request) {
       }
 
       dataSheet.addRow(rowData);
-    }
-
-    stage = 'APPLY_HYPERLINKS';
-    if (includeProofLinks) {
-      const startRow = 2;
-      for (let i = 0; i < filteredOrders.length; i++) {
-        const order = filteredOrders[i];
-        const rowIndex = startRow + i;
-        const colIndex = 10;
-        const cell = dataSheet.getCell(rowIndex, colIndex);
-        cell.value = `https://almotamed.com/proof/${order.proofToken}`;
-      }
     }
 
     stage = 'WRITE_BUFFER';
