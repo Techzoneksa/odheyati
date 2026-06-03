@@ -218,7 +218,14 @@ export default function DashboardClient() {
     const res = await fetch(url);
     if (res.ok) {
       const data = await res.json();
-      setOrders(data);
+      console.log('DASHBOARD_ORDERS', { isArray: Array.isArray(data), length: Array.isArray(data) ? data.length : 'not_array' });
+      if (Array.isArray(data)) {
+        setOrders(data);
+      } else {
+        console.error('DASHBOARD_ORDERS_ERROR', { type: typeof data, keys: data ? Object.keys(data) : 'null' });
+      }
+    } else {
+      console.error('DASHBOARD_FETCH_ERROR', { status: res.status });
     }
     setLoading(false);
   }

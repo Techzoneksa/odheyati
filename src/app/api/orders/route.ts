@@ -57,50 +57,67 @@ function normalizeMobileForSearch(mobile: string): string[] {
 }
 
 export async function GET(request: Request) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const orderNumber = searchParams.get('orderNumber');
+    const mobile = searchParams.get('mobile');
+    const status = searchParams.get('status');
+    const platform = searchParams.get('platform');
+
+    const whereClause: any = {};
+
+    const ignoreValues = ['all', 'الكل', '', null, undefined];
+
+    if (status && !ignoreValues.includes(status)) {
+      whereClause.proofStatus = status;
+    }
+
+    if (platform && !ignoreValues.includes(platform) && platform.trim() !== '') {
+      whereClause.platform = platform;
+    }
+
+    if (orderNumber) {
+      whereClause.orderNumber = {
+        contains: orderNumber.toString(),
+        mode: 'insensitive',
+      };
+    }
+
+    if (mobile) {
+      const mobileVariations = normalizeMobileForSearch(mobile);
+      whereClause.OR = mobileVariations.map(m => ({
+        customerMobile: { contains: m },
+      }));
+    }
+
+    console.log('ORDERS_QUERY', {
+      hasFilters: Object.keys(whereClause).length > 0,
+      status,
+      platform,
+      orderNumber: !!orderNumber,
+      mobile: !!mobile
+    });
+
+    const orders = await prisma.order.findMany({
+      where: Object.keys(whereClause).length > 0 ? whereClause : undefined,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        files: true,
+      },
+    });
+
+    console.log('ORDERS_RESULT', { count: orders.length });
+
+    return NextResponse.json(orders);
+  } catch (error) {
+    console.error('ORDERS_API_ERROR', {
+      message: error instanceof Error ? error.message : String(error)
+    });
+    return NextResponse.json({ error: 'Failed to fetch orders' }, { status: 500 });
   }
-
-  const { searchParams } = new URL(request.url);
-  const orderNumber = searchParams.get('orderNumber');
-  const mobile = searchParams.get('mobile');
-  const status = searchParams.get('status');
-  const platform = searchParams.get('platform');
-
-  const whereClause: any = {};
-
-  const ignoreValues = ['all', 'الكل', '', null, undefined];
-
-  if (status && !ignoreValues.includes(status)) {
-    whereClause.proofStatus = status;
-  }
-
-  if (platform && !ignoreValues.includes(platform) && platform.trim() !== '') {
-    whereClause.platform = platform;
-  }
-
-  if (orderNumber) {
-    whereClause.orderNumber = {
-      contains: orderNumber.toString(),
-      mode: 'insensitive',
-    };
-  }
-
-  if (mobile) {
-    const mobileVariations = normalizeMobileForSearch(mobile);
-    whereClause.OR = mobileVariations.map(m => ({
-      customerMobile: { contains: m },
-    }));
-  }
-
-  const orders = await prisma.order.findMany({
-    where: Object.keys(whereClause).length > 0 ? whereClause : undefined,
-    orderBy: { createdAt: 'desc' },
-    include: {
-      files: true,
-    },
-  });
-
-  return NextResponse.json(orders);
 }
