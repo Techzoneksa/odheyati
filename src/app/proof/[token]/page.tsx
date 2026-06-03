@@ -1,8 +1,33 @@
-import { notFound } from 'next/navigation';
-import { prisma } from '@/lib/prisma';
-import { getSignedDownloadUrl } from '@/lib/r2';
+'use client';
+
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+
+interface ProofFile {
+  id: string;
+  type: string;
+  fileName: string;
+  storageKey: string;
+}
+
+interface OrderItem {
+  id: string;
+  name: string;
+  quantity: number;
+  price: number;
+}
+
+interface Order {
+  id: string;
+  orderNumber: string;
+  proofToken: string;
+  customerName: string;
+  customerMobile: string;
+  proofStatus: string;
+  createdAt: string | null;
+  files: ProofFile[];
+  items: OrderItem[];
+}
 
 const statusLabels: Record<string, string> = {
   PENDING: 'بانتظار',
@@ -14,23 +39,8 @@ const statusLabels: Record<string, string> = {
   CANCELLED: 'ملغي',
 };
 
-interface Props {
-  params: Promise<{ token: string }>;
-}
-
-export async function generateMetadata({ params }: Props) {
-  const { token } = await params;
-  const order = await prisma.order.findUnique({
-    where: { proofToken: token },
-  });
-  
-  return {
-    title: order ? `توثيق طلب ${order.orderNumber}` : 'التوثيق',
-    robots: { index: false, follow: false },
-  };
-}
-
 function getStatusMessage(proofStatus: string, hasFiles: boolean, customerName: string): { title: string; message: string } {
+  const safeName = customerName || 'عميلنا الكريم';
   switch (proofStatus) {
     case 'CANCELLED':
       return {
@@ -40,71 +50,160 @@ function getStatusMessage(proofStatus: string, hasFiles: boolean, customerName: 
     case 'PENDING':
     case 'IN_PROGRESS':
       return {
-        title: `مرحبًا ${customerName}`,
+        title: `مرحبًا ${safeName}`,
         message: 'طلبكم في مرحلة المتابعة والتجهيز، وسيتم تحديث هذه الصفحة عند جاهزية التوثيق.\nيمكنكم العودة لهذه الصفحة لاحقًا لمتابعة حالة الطلب.',
       };
     case 'SLAUGHTERED':
       if (!hasFiles) {
         return {
-          title: `مرحبًا ${customerName}`,
+          title: `مرحبًا ${safeName}`,
           message: 'تم تنفيذ طلبكم بنجاح، وجاري تجهيز ورفع ملفات التوثيق الخاصة بكم.',
         };
       }
       return {
-        title: `مرحبًا ${customerName}`,
+        title: `مرحبًا ${safeName}`,
         message: 'توثيق طلبكم جاهز، يمكنكم مشاهدة الصور والفيديوهات أدناه.',
       };
     case 'MEDIA_UPLOADED':
     case 'READY':
     case 'VIEWED':
       return {
-        title: `مرحبًا ${customerName}`,
+        title: `مرحبًا ${safeName}`,
         message: 'توثيق طلبكم جاهز، يمكنكم مشاهدة الصور والفيديوهات أدناه.',
       };
     default:
       return {
-        title: `مرحبًا ${customerName}`,
+        title: `مرحبًا ${safeName}`,
         message: 'طلبكم قيد التنفيذ، وسيظهر التوثيق هنا بعد اكتمال التجهيز.',
       };
   }
 }
 
-export default async function ProofPage({ params }: Props) {
-  const { token } = await params;
-  
-  const order = await prisma.order.findUnique({
-    where: { proofToken: token },
-    include: {
-      items: true,
-      files: {
-        orderBy: [{ type: 'asc' }, { sortOrder: 'asc' }],
-      },
-    },
-  });
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '-';
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '-';
+    return date.toLocaleDateString('ar-SA');
+  } catch {
+    return '-';
+  }
+}
 
-  if (!order) {
-    notFound();
+function getSafeCustomerName(name: string | null | undefined): string {
+  if (!name) return 'عميلنا الكريم';
+  const firstPart = name.split(' ')[0];
+  return firstPart || 'عميلنا الكريم';
+}
+
+function getSafeOrderNumber(orderNumber: string | null | undefined): string {
+  return orderNumber || '-';
+}
+
+function ErrorDisplay({ message }: { message: string }) {
+  return (
+    <main className="min-h-screen px-4 py-8">
+      <div className="max-w-2xl mx-auto">
+        <div className="text-center mb-8">
+          <img src="/logo.png" alt="أضحيتي" width={180} height={60} className="mx-auto mb-4" />
+          <p className="text-lg text-text-secondary">توثيقات أضحيتي</p>
+        </div>
+        <div className="card p-6 text-center">
+          <div className="text-4xl mb-4">⚠️</div>
+          <p className="text-text-primary font-medium">{message}</p>
+          <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+            <Link
+              href="/track"
+              className="py-3 px-6 rounded-lg border border-primary text-primary hover:bg-primary hover:text-white transition-colors font-medium"
+            >
+              العودة للبحث
+            </Link>
+            <a
+              href="https://odheyati.com"
+              className="py-3 px-6 rounded-lg border border-border text-text-secondary hover:bg-background-cream transition-colors font-medium"
+            >
+              العودة إلى المتجر
+            </a>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function LoadingDisplay() {
+  return (
+    <main className="min-h-screen px-4 py-8">
+      <div className="max-w-2xl mx-auto text-center">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-48 mx-auto mb-4"></div>
+          <div className="h-4 bg-gray-200 rounded w-32 mx-auto"></div>
+        </div>
+        <p className="text-text-secondary mt-4">جاري تحميل التوثيق...</p>
+      </div>
+    </main>
+  );
+}
+
+interface Props {
+  params: Promise<{ token: string }>;
+}
+
+export default function ProofPage({ params }: Props) {
+  const [order, setOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [mediaError, setMediaError] = useState(false);
+  const [token, setToken] = useState<string>('');
+
+  useEffect(() => {
+    params.then(({ token }) => {
+      setToken(token);
+      fetchOrder(token);
+    });
+  }, []);
+
+  async function fetchOrder(t: string) {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const res = await fetch(`/api/proof/${t}`);
+
+      if (!res.ok) {
+        if (res.status === 404) {
+          setError('لم يتم العثور على التوثيق');
+        } else {
+          setError('حدث خطأ في تحميل التوثيق');
+        }
+        setLoading(false);
+        return;
+      }
+
+      const data = await res.json();
+      setOrder(data);
+      setLoading(false);
+    } catch (err) {
+      console.error('PROOF_PAGE_FAILED', {
+        digestHint: '2823370080',
+        stage: 'FETCH_ORDER',
+        tokenPresent: Boolean(t)
+      });
+      setError('حدث خطأ في تحميل التوثيق');
+      setLoading(false);
+    }
   }
 
-  const images = order.files.filter(f => f.type === 'IMAGE');
-  const videos = order.files.filter(f => f.type === 'VIDEO');
+  if (loading) return <LoadingDisplay />;
+  if (error) return <ErrorDisplay message={error} />;
+  if (!order) return <ErrorDisplay message="لم يتم العثور على التوثيق" />;
+
+  const images = (order.files || []).filter((f: ProofFile) => f.type === 'IMAGE');
+  const videos = (order.files || []).filter((f: ProofFile) => f.type === 'VIDEO');
   const hasFiles = images.length > 0 || videos.length > 0;
 
-  const imagesWithUrls = await Promise.all(
-    images.map(async (f) => ({
-      ...f,
-      url: await getSignedDownloadUrl(f.storageKey),
-    }))
-  );
-
-  const videosWithUrls = await Promise.all(
-    videos.map(async (f) => ({
-      ...f,
-      url: await getSignedDownloadUrl(f.storageKey),
-    }))
-  );
-
-  const customerName = order.customerName.split(' ')[0];
+  const customerName = getSafeCustomerName(order.customerName);
+  const orderNumber = getSafeOrderNumber(order.orderNumber);
   const statusMessage = getStatusMessage(order.proofStatus, hasFiles, customerName);
 
   const showFiles = hasFiles && ['SLAUGHTERED', 'MEDIA_UPLOADED', 'READY', 'VIEWED'].includes(order.proofStatus);
@@ -124,18 +223,16 @@ export default async function ProofPage({ params }: Props) {
           <div className="flex justify-between items-start mb-4">
             <div>
               <h2 className="text-xl font-bold text-text-primary">{statusMessage.title}</h2>
-              <p className="text-text-secondary">طلب #{order.orderNumber}</p>
+              <p className="text-text-secondary">طلب #{orderNumber}</p>
             </div>
-            <span className={`status-badge status-${order.proofStatus.toLowerCase().replace('_', '-')}`}>
-              {statusLabels[order.proofStatus] || order.proofStatus}
+            <span className={`status-badge status-${(order.proofStatus || 'pending').toLowerCase().replace('_', '-')}`}>
+              {statusLabels[order.proofStatus] || order.proofStatus || 'بانتظار'}
             </span>
           </div>
 
-          {order.createdAt && (
-            <p className="text-sm text-text-secondary">
-              تاريخ الطلب: {new Date(order.createdAt).toLocaleDateString('ar-SA')}
-            </p>
-          )}
+          <p className="text-sm text-text-secondary">
+            تاريخ الطلب: {formatDate(order.createdAt)}
+          </p>
         </div>
 
         {showCancelledMessage ? (
@@ -162,22 +259,32 @@ export default async function ProofPage({ params }: Props) {
               <p className="text-text-primary whitespace-pre-line">{statusMessage.message}</p>
             </div>
 
-            {imagesWithUrls.length > 0 && (
+            {mediaError ? (
+              <div className="card p-6 text-center mb-4">
+                <div className="text-2xl mb-2">⚠️</div>
+                <p className="text-text-secondary text-sm">تعذر تحميل بعض ملفات التوثيق مؤقتًا، حاول لاحقًا.</p>
+              </div>
+            ) : null}
+
+            {images.length > 0 && (
               <div className="card p-6 mb-4">
                 <h3 className="font-semibold text-text-primary mb-4">الصور</h3>
                 <div className="grid grid-cols-2 gap-4">
-                  {imagesWithUrls.map((image) => (
+                  {images.map((image) => (
                     <div key={image.id} className="relative">
-                      <Image
-                        src={image.url}
-                        alt={image.fileName}
+                      <img
+                        src={`/api/files/${image.id}`}
+                        alt={image.fileName || 'صورة التوثيق'}
                         width={300}
                         height={200}
                         className="w-full h-48 object-cover rounded-lg"
+                        onError={() => setMediaError(true)}
                       />
                       <a
-                        href={image.url}
+                        href={`/api/files/${image.id}`}
                         download={image.fileName}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 hover:opacity-100 transition-opacity rounded-lg"
                       >
                         <span className="text-white font-medium">تحميل</span>
@@ -188,22 +295,23 @@ export default async function ProofPage({ params }: Props) {
               </div>
             )}
 
-            {videosWithUrls.length > 0 && (
+            {videos.length > 0 && (
               <div className="card p-6 mb-4">
                 <h3 className="font-semibold text-text-primary mb-4">الفيديوهات</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 justify-items-center">
-                  {videosWithUrls.map((video) => (
+                  {videos.map((video) => (
                     <div key={video.id} className="video-proof-card">
                       <video
-                        src={video.url}
+                        src={`/api/files/${video.id}`}
                         controls
                         playsInline
                         className="video-element"
+                        onError={() => setMediaError(true)}
                       />
                     </div>
                   ))}
                 </div>
-                {videosWithUrls.length > 1 && (
+                {videos.length > 1 && (
                   <p className="text-center text-text-secondary text-sm mt-4">
                     يمكنكم التمرير لمشاهدة باقي الفيديوهات
                   </p>
