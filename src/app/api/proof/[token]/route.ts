@@ -28,6 +28,7 @@ export async function GET(
 
     return NextResponse.json(order);
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch order', details: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
+    console.error('PROOF_API_ERROR', error);
+    return NextResponse.json({ error: 'Failed to fetch order', details: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
