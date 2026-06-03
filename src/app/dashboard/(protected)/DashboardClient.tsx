@@ -305,6 +305,7 @@ export default function DashboardClient() {
     setSearch('');
     setMobileSearch('');
     setStatusFilter('');
+    setPlatformFilter('');
     setSearchResults([]);
     setMobileResults([]);
     setShowSearchDropdown(false);
