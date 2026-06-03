@@ -89,12 +89,8 @@ export async function GET(request: Request) {
       filteredOrders = filteredOrders.filter((o: any) => o.files.some((f: any) => f.type === 'IMAGE'));
     }
 
-    console.error('EXPORT_DEBUG', { stage: 'QUERY_COMPLETE', orderCount: orders.length, filteredCount: filteredOrders.length });
-
     stage = 'CREATE_WORKBOOK';
     const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'أضحيتي';
-    workbook.created = new Date();
 
     const summarySheet = workbook.addWorksheet('ملخص التصدير');
     const dataSheet = workbook.addWorksheet('البيانات');

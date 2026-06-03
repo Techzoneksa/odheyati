@@ -70,14 +70,6 @@ export async function GET(request: Request) {
 
   const whereClause: any = {};
 
-  console.error('DEBUG_ORDERS_API', {
-    status,
-    platform,
-    orderNumber,
-    mobile,
-    whereClauseKeys: Object.keys(whereClause)
-  });
-
   if (status && status !== 'all') {
     whereClause.proofStatus = status;
   }
@@ -107,8 +99,6 @@ export async function GET(request: Request) {
       files: true,
     },
   });
-
-  console.error('DEBUG_ORDERS_RESULT', { orderCount: orders.length, whereClauseKeys: Object.keys(whereClause) });
 
   return NextResponse.json(orders);
 }

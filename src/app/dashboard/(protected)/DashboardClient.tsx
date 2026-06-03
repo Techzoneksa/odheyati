@@ -200,18 +200,9 @@ export default function DashboardClient() {
     if (search) params.set('orderNumber', search);
     if (mobileSearch) params.set('mobile', mobileSearch);
 
-    console.error('DEBUG_CLIENT_FETCH', {
-      statusFilter,
-      platformFilter,
-      search,
-      mobileSearch,
-      paramsString: params.toString()
-    });
-
     const res = await fetch(`/api/orders?${params}`);
     if (res.ok) {
       const data = await res.json();
-      console.error('DEBUG_CLIENT_RESULT', { dataLength: data.length });
       setOrders(data);
     }
     setLoading(false);
