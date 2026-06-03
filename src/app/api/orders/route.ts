@@ -69,6 +69,11 @@ export async function GET(request: Request) {
     const status = searchParams.get('status');
     const platform = searchParams.get('platform');
 
+    const pageParam = searchParams.get('page');
+    const page = pageParam ? parseInt(pageParam) : 1;
+    const limit = 50;
+    const skip = (page - 1) * limit;
+
     const whereClause: any = {};
 
     const ignoreValues = ['all', 'الكل', '', null, undefined];
@@ -95,15 +100,22 @@ export async function GET(request: Request) {
       }));
     }
 
-    const orders = await prisma.order.findMany({
-      where: Object.keys(whereClause).length > 0 ? whereClause : undefined,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        files: true,
-      },
-    });
+    const [orders, total] = await Promise.all([
+      prisma.order.findMany({
+        where: Object.keys(whereClause).length > 0 ? whereClause : undefined,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          files: true,
+        },
+        take: limit,
+        skip: skip,
+      }),
+      prisma.order.count({
+        where: Object.keys(whereClause).length > 0 ? whereClause : undefined,
+      }),
+    ]);
 
-    return NextResponse.json(orders);
+    return NextResponse.json({ orders, total, page, limit });
   } catch (error) {
     console.error('ORDERS_API_ERROR', error);
     return NextResponse.json({ error: 'Failed to fetch orders', details: error instanceof Error ? error.message : String(error) }, { status: 500 });

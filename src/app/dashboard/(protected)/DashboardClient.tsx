@@ -152,6 +152,8 @@ export default function DashboardClient() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [platformFilter, setPlatformFilter] = useState('all');
   const [logoutLoading, setLogoutLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [mobileResults, setMobileResults] = useState<SearchResult[]>([]);
@@ -167,7 +169,8 @@ export default function DashboardClient() {
 
   useEffect(() => {
     fetchStats();
-    fetchOrders();
+    setCurrentPage(1);
+    fetchOrders(1);
   }, []);
 
   useEffect(() => {
@@ -192,9 +195,10 @@ export default function DashboardClient() {
     }
   }
 
-  async function fetchOrders() {
+  async function fetchOrders(page = 1) {
     setLoading(true);
     const params = new URLSearchParams();
+    params.set('page', page.toString());
 
     if (statusFilter && statusFilter !== 'all') {
       params.set('status', statusFilter);
@@ -213,31 +217,13 @@ export default function DashboardClient() {
     }
 
     const queryString = params.toString();
-    const url = queryString ? `/api/orders?${queryString}` : '/api/orders';
+    const url = `/api/orders?${queryString}`;
 
-    console.log('=== ORDERS DEBUG ===');
-    console.log('URL:', url);
-    console.log('Status filter:', statusFilter);
-    console.log('Platform filter:', platformFilter);
-    console.log('===================');
-
-    const res = await fetch(url, {
-      credentials: 'include'
-    });
-    console.log('Response status:', res.status);
-    console.log('Response ok:', res.ok);
-
+    const res = await fetch(url);
     if (res.ok) {
       const data = await res.json();
-      console.log('Data type:', typeof data);
-      console.log('Is array:', Array.isArray(data));
-      console.log('Data length:', data?.length);
-      setOrders(data);
-    } else if (res.status === 401) {
-      console.log('Auth error - redirecting to login');
-      window.location.href = '/dashboard/login';
-    } else {
-      console.log('API error:', res.status);
+      setOrders(data.orders ?? data);
+      setTotal(data.total ?? 0);
     }
     setLoading(false);
   }
@@ -307,10 +293,11 @@ export default function DashboardClient() {
   function handleSearchKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter') {
       e.preventDefault();
+      setCurrentPage(1);
       if (searchResults.length > 0) {
         router.push(`/dashboard/orders/${searchResults[0].id}`);
       } else {
-        fetchOrders();
+        fetchOrders(1);
       }
       setShowSearchDropdown(false);
     }
@@ -319,10 +306,11 @@ export default function DashboardClient() {
   function handleMobileKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter') {
       e.preventDefault();
+      setCurrentPage(1);
       if (mobileResults.length > 0) {
         router.push(`/dashboard/orders/${mobileResults[0].id}`);
       } else {
-        fetchOrders();
+        fetchOrders(1);
       }
       setShowMobileDropdown(false);
     }
@@ -330,9 +318,10 @@ export default function DashboardClient() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setCurrentPage(1);
     setShowSearchDropdown(false);
     setShowMobileDropdown(false);
-    await fetchOrders();
+    await fetchOrders(1);
   }
 
   function handleClear() {
@@ -344,7 +333,8 @@ export default function DashboardClient() {
     setMobileResults([]);
     setShowSearchDropdown(false);
     setShowMobileDropdown(false);
-    fetchOrders();
+    setCurrentPage(1);
+    fetchOrders(1);
   }
 
   async function handleLogout() {
@@ -676,6 +666,26 @@ export default function DashboardClient() {
                     })}
                   </tbody>
                 </table>
+
+                {total > 50 && (
+                  <div className="flex justify-center gap-2 mt-4">
+                    <button
+                      disabled={currentPage === 1}
+                      onClick={() => { setCurrentPage(p => p - 1); fetchOrders(currentPage - 1); }}
+                      className="px-3 py-1 rounded border border-border text-sm hover:bg-background-cream disabled:opacity-50"
+                    >
+                      السابق
+                    </button>
+                    <span className="px-3 py-1">{currentPage} / {Math.ceil(total / 50)}</span>
+                    <button
+                      disabled={currentPage >= Math.ceil(total / 50)}
+                      onClick={() => { setCurrentPage(p => p + 1); fetchOrders(currentPage + 1); }}
+                      className="px-3 py-1 rounded border border-border text-sm hover:bg-background-cream disabled:opacity-50"
+                    >
+                      التالي
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
