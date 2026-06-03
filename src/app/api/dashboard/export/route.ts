@@ -20,9 +20,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  let stage = 'START';
   let filteredOrders: any[] = [];
+  let errorMessage = '';
 
   try {
+    stage = 'PARSE_FILTERS';
     const { searchParams } = new URL(request.url);
     const proofStatus = searchParams.get('proofStatus') || '';
     const sallaStatus = searchParams.get('sallaStatus') || '';
@@ -32,6 +35,7 @@ export async function GET(request: Request) {
     const includeProofLinks = searchParams.get('includeProofLinks') !== 'false';
     const mediaFilter = searchParams.get('mediaFilter') || 'all';
 
+    stage = 'BUILD_WHERE_CLAUSE';
     const whereClause: any = {};
 
     if (proofStatus && proofStatus !== 'all') {
@@ -62,6 +66,7 @@ export async function GET(request: Request) {
       }
     }
 
+    stage = 'QUERY_ORDERS';
     const orders = await prisma.order.findMany({
       where: whereClause,
       include: {
@@ -73,6 +78,7 @@ export async function GET(request: Request) {
 
     filteredOrders = orders;
 
+    stage = 'APPLY_MEDIA_FILTER';
     if (mediaFilter === 'with_files') {
       filteredOrders = filteredOrders.filter((o: any) => o.files.length > 0);
     } else if (mediaFilter === 'without_files') {
@@ -83,8 +89,9 @@ export async function GET(request: Request) {
       filteredOrders = filteredOrders.filter((o: any) => o.files.some((f: any) => f.type === 'IMAGE'));
     }
 
-    console.error('EXPORT_DEBUG', { orderCount: orders.length, filteredCount: filteredOrders.length });
+    console.error('EXPORT_DEBUG', { stage: 'QUERY_COMPLETE', orderCount: orders.length, filteredCount: filteredOrders.length });
 
+    stage = 'CREATE_WORKBOOK';
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'أضحيتي';
     workbook.created = new Date();
@@ -92,6 +99,7 @@ export async function GET(request: Request) {
     const summarySheet = workbook.addWorksheet('ملخص التصدير');
     const dataSheet = workbook.addWorksheet('البيانات');
 
+    stage = 'FILL_SUMMARY_SHEET';
     summarySheet.columns = [{ width: 25 }, { width: 40 }];
 
     summarySheet.addRow(['تقرير توثيقات أضحيتي']).font = { bold: true, size: 16, color: { argb: 'FF973131' } };
@@ -113,7 +121,7 @@ export async function GET(request: Request) {
     summarySheet.addRow(['تاريخ التصدير', exportDate]);
     summarySheet.addRow(['عدد الطلبات في التقرير', filteredOrders.length]);
     summarySheet.addRow(['فلتر حالة التوثيق', proofStatus || 'الكل']);
-    summarySheet.addRow(['فلتر حالة سلة', sallaStatus || 'الكل']);
+    summarySheet.addRow(['فلتر حالة سلة', sallaStatus || 'كل']);
     summarySheet.addRow(['نطاق التاريخ', dateFrom && dateTo ? `${dateFrom} إلى ${dateTo}` : 'الكل']);
     summarySheet.addRow(['يشمل الأسعار', includePrices ? 'نعم' : 'لا']);
     summarySheet.addRow(['عدد الطلبات التي فيها ملفات', imagesCount + videosCount]);
@@ -127,6 +135,7 @@ export async function GET(request: Request) {
       summarySheet.getRow(i).border = { bottom: { style: 'thin', color: { argb: 'FFE8D3C4' } } };
     }
 
+    stage = 'FILL_DATA_SHEET_HEADERS';
     const headers = [
       'رقم الطلب',
       'اسم العميل',
@@ -175,6 +184,7 @@ export async function GET(request: Request) {
 
     dataSheet.views = [{ state: 'frozen', xSplit: 0, ySplit: 1 }];
 
+    stage = 'FILL_DATA_SHEET_ROWS';
     for (const order of filteredOrders) {
       const images = order.files.filter((f: any) => f.type === 'IMAGE').length;
       const videos = order.files.filter((f: any) => f.type === 'VIDEO').length;
@@ -221,9 +231,11 @@ export async function GET(request: Request) {
       }
     });
 
+    stage = 'WRITE_BUFFER';
     const bufferResult = await workbook.xlsx.writeBuffer();
     const buffer = Buffer.isBuffer(bufferResult) ? bufferResult : Buffer.from(bufferResult as any);
 
+    stage = 'BUILD_RESPONSE';
     const fileName = `odheyati-proof-export-${new Date().toISOString().split('T')[0]}.xlsx`;
 
     return new NextResponse(buffer, {
@@ -234,26 +246,40 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
+    errorMessage = error instanceof Error ? error.message : String(error);
+
     let reason = 'UNKNOWN_EXPORT_ERROR';
 
     if (error instanceof Error) {
-      if (error.message.includes('prisma') || error.message.includes('Prisma')) {
+      if (error.message.includes('prisma') || error.message.includes('Prisma') || error.message.includes('database')) {
         reason = 'PRISMA_QUERY_FAILED';
       } else if (error.message.includes('ExcelJS') || error.message.includes('exceljs') || error.message.includes('workbook')) {
+        reason = 'EXCELJS_WORKBOOK_FAILED';
+      } else if (error.message.includes('writeBuffer')) {
         reason = 'EXCELJS_WRITE_FAILED';
-      } else if (error.message.includes('writeBuffer') || error.message.includes('buffer')) {
-        reason = 'WORKBOOK_BUILD_FAILED';
+      } else if (error.message.includes('buffer')) {
+        reason = 'BUFFER_CONVERSION_FAILED';
       } else if (error.message.includes('Invalid') || error.message.includes('invalid') || error.message.includes('Date')) {
         reason = 'INVALID_DATE';
+      } else if (error.message.includes('parse') || error.message.includes('Parse')) {
+        reason = 'INVALID_FILTER';
       }
+    }
+
+    if (stage !== 'START' && reason === 'UNKNOWN_EXPORT_ERROR') {
+      reason = `${stage}_FAILED`;
     }
 
     console.error('EXPORT_FAILED', {
       reason,
-      message: error instanceof Error ? error.message : String(error),
-      count: filteredOrders?.length,
+      stage,
+      message: errorMessage,
     });
 
-    return NextResponse.json({ error: 'EXPORT_FAILED', reason }, { status: 500 });
+    return NextResponse.json({
+      error: 'EXPORT_FAILED',
+      reason,
+      debugMessage: errorMessage.substring(0, 100),
+    }, { status: 500 });
   }
 }

@@ -38,7 +38,8 @@ export default function ExportPage() {
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         const reason = data.reason || 'UNKNOWN';
-        throw new Error(`Export failed: ${reason}`);
+        const debugMessage = data.debugMessage || '';
+        throw new Error(`Export failed: ${reason} | debugMessage: ${debugMessage}`);
       }
 
       const blob = await response.blob();
@@ -53,7 +54,9 @@ export default function ExportPage() {
     } catch (err: any) {
       const reasonMatch = err.message.match(/Export failed: (.+)/);
       const reason = reasonMatch ? reasonMatch[1] : '';
-      setError(reason ? `تعذر تصدير الملف، حاول مرة أخرى.\nسبب الخطأ: ${reason}` : 'تعذر تصدير الملف، حاول مرة أخرى.');
+      const debugMatch = err.message.match(/debugMessage: (.+)/);
+      const debugMessage = debugMatch ? debugMatch[1] : '';
+      setError(reason ? `تعذر تصدير الملف، حاول مرة أخرى.\nسبب الخطأ: ${reason}${debugMessage ? `\nتفاصيل: ${debugMessage}` : ''}` : 'تعذر تصدير الملف، حاول مرة أخرى.');
     }
 
     setExporting(false);
