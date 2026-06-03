@@ -67,7 +67,6 @@ export async function GET(request: Request) {
     const orderNumber = searchParams.get('orderNumber');
     const mobile = searchParams.get('mobile');
     const status = searchParams.get('status');
-    const platform = searchParams.get('platform');
 
     const pageParam = searchParams.get('page');
     const page = pageParam ? parseInt(pageParam) : 1;
@@ -76,14 +75,8 @@ export async function GET(request: Request) {
 
     const whereClause: any = {};
 
-    const ignoreValues = ['all', 'الكل', '', null, undefined];
-
-    if (status && !ignoreValues.includes(status)) {
+    if (status && status !== 'all' && status !== 'الكل' && status.trim() !== '') {
       whereClause.proofStatus = status;
-    }
-
-    if (platform && !ignoreValues.includes(platform) && platform.trim() !== '') {
-      whereClause.platform = platform;
     }
 
     if (orderNumber) {

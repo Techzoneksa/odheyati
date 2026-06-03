@@ -16,8 +16,6 @@ function TrackContent() {
   const searchParams = useSearchParams();
   const [countryCode, setCountryCode] = useState('966');
   const [mobile, setMobile] = useState('');
-  const [email, setEmail] = useState('');
-  const [searchType, setSearchType] = useState<'mobile' | 'email'>('mobile');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [orders, setOrders] = useState<{id: string; orderNumber: string; proofStatus: string; createdAt: string; proofToken: string}[]>([]);
@@ -28,86 +26,45 @@ function TrackContent() {
     setOrders([]);
     setLoading(true);
 
-    if (searchType === 'mobile') {
-      if (mobile.length < 7) {
-        setError('رقم الجوال غير صالح');
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const res = await fetch('/api/lookup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ countryCode, mobile }),
-        });
-
-        const data = await res.json();
-
-        if (!res.ok || data.error) {
-          setError('لم نجد توثيقًا مرتبطًا بهذا الرقم. تأكد من الرقم وحاول مرة أخرى.');
-          setLoading(false);
-          return;
-        }
-
-        if (data.orders && data.orders.length > 1) {
-          setOrders(data.orders);
-          setLoading(false);
-          return;
-        }
-
-        if (data.token) {
-          window.location.href = `/proof/${data.token}`;
-        } else if (data.orders && data.orders.length === 1) {
-          window.location.href = `/proof/${data.orders[0].proofToken}`;
-        } else {
-          setError('لم نجد توثيقًا مرتبطًا بهذا الرقم. تأكد من الرقم وحاول مرة أخرى.');
-        }
-      } catch {
-        setError('حدث خطأ، حاول مرة أخرى');
-      }
+    if (mobile.length < 7) {
+      setError('رقم الجوال غير صالح');
       setLoading(false);
-    } else {
-      if (!email || !email.includes('@')) {
-        setError('الإيميل غير صالح');
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const res = await fetch('/api/lookup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email }),
-        });
-
-        const data = await res.json();
-
-        if (!res.ok || data.error) {
-          setError('لم نجد توثيقًا مرتبطًا بهذا الإيميل.');
-          setLoading(false);
-          return;
-        }
-
-        if (data.orders && data.orders.length > 1) {
-          setOrders(data.orders);
-          setLoading(false);
-          return;
-        }
-
-        if (data.token) {
-          window.location.href = `/proof/${data.token}`;
-        } else if (data.orders && data.orders.length === 1) {
-          window.location.href = `/proof/${data.orders[0].proofToken}`;
-        } else {
-          setError('لم نجد توثيقًا مرتبطًا بهذا الإيميل.');
-        }
-      } catch {
-        setError('حدث خطأ، حاول مرة أخرى');
-      }
-      setLoading(false);
+      return;
     }
-  }, [mobile, countryCode, email, searchType]);
+
+    try {
+      const res = await fetch('/api/lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ countryCode, mobile }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        setError('لم نجد توثيقًا مرتبطًا بهذا الرقم. تأكد من الرقم وحاول مرة أخرى.');
+        setLoading(false);
+        return;
+      }
+
+      if (data.orders && data.orders.length > 1) {
+        setOrders(data.orders);
+        setLoading(false);
+        return;
+      }
+
+      if (data.token) {
+        window.location.href = `/proof/${data.token}`;
+      } else if (data.orders && data.orders.length === 1) {
+        window.location.href = `/proof/${data.orders[0].proofToken}`;
+      } else {
+        setError('لم نجد توثيقًا مرتبطًا بهذا الرقم. تأكد من الرقم وحاول مرة أخرى.');
+      }
+    } catch {
+      setError('حدث خطأ، حاول مرة أخرى');
+    }
+    setLoading(false);
+  }, [mobile, countryCode]);
 
   useEffect(() => {
     const urlCountryCode = searchParams.get('countryCode');
@@ -130,83 +87,41 @@ function TrackContent() {
   return (
     <div className="card p-6">
       <p className="text-center text-text-secondary mb-6">
-        أدخل رقم جوالك أو إيميلك لمشاهدة توثيقات طلباتك
+        أدخل رقم جوالك لمشاهدة توثيقات طلباتك
       </p>
 
-      <div className="flex gap-2 mb-6">
-        <button
-          type="button"
-          onClick={() => setSearchType('mobile')}
-          className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
-            searchType === 'mobile'
-              ? 'bg-primary text-white'
-              : 'bg-background-beige text-text-secondary hover:bg-border'
-          }`}
-        >
-          رقم الجوال
-        </button>
-        <button
-          type="button"
-          onClick={() => setSearchType('email')}
-          className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
-            searchType === 'email'
-              ? 'bg-primary text-white'
-              : 'bg-background-beige text-text-secondary hover:bg-border'
-          }`}
-        >
-          الإيميل
-        </button>
-      </div>
-
       <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="space-y-4">
-        {searchType === 'mobile' ? (
-          <>
-            <div>
-              <label className="label">الدولة</label>
-              <select
-                value={countryCode}
-                onChange={(e) => setCountryCode(e.target.value)}
-                className="input-field"
-                dir="rtl"
-              >
-                {countries.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.flag} {c.name} +{c.code}
-                  </option>
-                ))}
-              </select>
-            </div>
+        <div>
+          <label className="label">الدولة</label>
+          <select
+            value={countryCode}
+            onChange={(e) => setCountryCode(e.target.value)}
+            className="input-field"
+            dir="rtl"
+          >
+            {countries.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.flag} {c.name} +{c.code}
+              </option>
+            ))}
+          </select>
+        </div>
 
-            <div>
-              <label className="label">رقم الجوال</label>
-              <input
-                type="tel"
-                value={mobile}
-                onChange={(e) => setMobile(e.target.value.replace(/\D/g, '').slice(0, 9))}
-                className="input-field"
-                placeholder={countryCode === '966' ? '5XXXXXXXX' : '5XXXXXXXXXX'}
-                dir="ltr"
-                required
-              />
-              <p className="text-xs text-text-secondary mt-1">
-                اكتب رقم الجوال بدون الصفر الأول، مثال للسعودية: 5XXXXXXXX
-              </p>
-            </div>
-          </>
-        ) : (
-          <div>
-            <label className="label">الإيميل</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="input-field"
-              placeholder="example@email.com"
-              dir="ltr"
-              required
-            />
-          </div>
-        )}
+        <div>
+          <label className="label">رقم الجوال</label>
+          <input
+            type="tel"
+            value={mobile}
+            onChange={(e) => setMobile(e.target.value.replace(/\D/g, '').slice(0, 9))}
+            className="input-field"
+            placeholder={countryCode === '966' ? '5XXXXXXXX' : '5XXXXXXXXXX'}
+            dir="ltr"
+            required
+          />
+          <p className="text-xs text-text-secondary mt-1">
+            اكتب رقم الجوال بدون الصفر الأول، مثال للسعودية: 5XXXXXXXX
+          </p>
+        </div>
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">

@@ -82,30 +82,14 @@ export default function ImportPage() {
 
         const headers = jsonData[0].map(h => h.toString().trim());
 
-        let orderCol = -1;
-        let statusCol = -1;
-        let nameCol = -1;
-        let mobileCol = -1;
-        let amountCol = -1;
-
-        if (platform === 'SALLA') {
-          orderCol = headers.findIndex(h => h.includes('رقم الطلب') || h.includes('order'));
-          statusCol = headers.findIndex(h => h.includes('حالة') || h.includes('status'));
-          nameCol = headers.findIndex(h => h.includes('اسم') || h.includes('name'));
-          mobileCol = headers.findIndex(h => h.includes('جوال') || h.includes('mobile') || h.includes('phone'));
-          amountCol = headers.findIndex(h => h.includes('مبلغ') || h.includes('amount'));
-        } else if (platform === 'SHOPIFY') {
-          orderCol = headers.findIndex(h => h.includes('Name') || h.includes('#'));
-          statusCol = headers.findIndex(h => h.includes('Financial Status') || h.includes('financial'));
-          nameCol = headers.findIndex(h => h.includes('Billing Name') || h.includes('billing'));
-          mobileCol = headers.findIndex(h => h.includes('Billing Phone') || h.includes('phone'));
-          amountCol = headers.findIndex(h => h.includes('Subtotal') || h.includes('subtotal'));
-        }
+        const orderCol = headers.findIndex(h => h.includes('رقم الطلب') || h.includes('order'));
+        const statusCol = headers.findIndex(h => h.includes('حالة') || h.includes('status'));
+        const nameCol = headers.findIndex(h => h.includes('اسم') || h.includes('name'));
+        const mobileCol = headers.findIndex(h => h.includes('جوال') || h.includes('mobile') || h.includes('phone'));
+        const amountCol = headers.findIndex(h => h.includes('مبلغ') || h.includes('amount'));
 
         if (orderCol === -1 || nameCol === -1 || mobileCol === -1) {
-          setError(platform === 'SALLA'
-            ? 'الملف لا يحتوي على الأعمدة المطلوبة (رقم الطلب، اسم العميل، رقم الجوال)'
-            : 'الملف لا يحتوي على الأعمدة المطلوبة (Name, Billing Name, Billing Phone)');
+          setError('الملف لا يحتوي على الأعمدة المطلوبة (رقم الطلب، اسم العميل، رقم الجوال)');
           return;
         }
 
@@ -164,7 +148,7 @@ export default function ImportPage() {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('platform', platform);
+      formData.append('platform', 'SALLA');
 
       const res = await fetch('/api/import', {
         method: 'POST',
@@ -217,18 +201,8 @@ export default function ImportPage() {
               />
               سلة
             </label>
-            <label className={`flex items-center gap-2 cursor-pointer px-4 py-2 rounded-lg border ${platform === 'SHOPIFY' ? 'border-primary bg-primary/10 text-primary' : 'border-border text-text-secondary'}`}>
-              <input
-                type="radio"
-                name="platform"
-                value="SHOPIFY"
-                checked={platform === 'SHOPIFY'}
-                onChange={() => handlePlatformChange('SHOPIFY')}
-                className="hidden"
-              />
-              Shopify
-            </label>
-          </div>
+            
+</div>
         </div>
 
         <div className="card p-6 mb-6">
@@ -292,18 +266,11 @@ export default function ImportPage() {
 
           <div className="mt-4 p-4 bg-background-beige rounded-lg">
             <h3 className="text-sm font-semibold text-text-primary mb-2">تعليمات الاستيراد</h3>
-            {platform === 'SALLA' ? (
-              <div className="text-sm text-text-secondary">
-                <p className="mb-2">يرجى رفع ملف الطلبات المصدر من سلة.</p>
-                <p><strong>الأعمدة المطلوبة:</strong> رقم الطلب، اسم العميل، رقم الجوال</p>
-                <p><strong>الأعمدة الاختيارية:</strong> حالة الطلب، المبلغ</p>
-              </div>
-            ) : (
-              <div className="text-sm text-text-secondary">
-                <p className="mb-2">يرجى رفع ملف Orders CSV المصدر من Shopify.</p>
-                <p><strong>الأعمدة المتوقعة:</strong> Name, Email, Billing Name, Billing Phone, Financial Status, Subtotal</p>
-              </div>
-            )}
+            <div className="text-sm text-text-secondary">
+              <p className="mb-2">يرجى رفع ملف الطلبات المصدر من سلة.</p>
+              <p><strong>الأعمدة المطلوبة:</strong> رقم الطلب، اسم العميل، رقم الجوال</p>
+              <p><strong>الأعمدة الاختيارية:</strong> حالة الطلب، المبلغ</p>
+            </div>
           </div>
 
           {error && (
