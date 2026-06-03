@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
 
 interface OrderRow {
@@ -46,9 +46,15 @@ export default function ImportPage() {
   const [result, setResult] = useState<ImportReport | null>(null);
   const [error, setError] = useState('');
   const [platform, setPlatform] = useState<'SALLA' | 'SHOPIFY'>('SALLA');
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const selectedFile = e.target.files?.[0];
+    processFile(selectedFile);
+  }
+
+  function processFile(selectedFile: File | undefined) {
     if (!selectedFile) return;
 
     if (!selectedFile.name.endsWith('.xlsx') && !selectedFile.name.endsWith('.xls') && !selectedFile.name.endsWith('.csv')) {
@@ -56,8 +62,8 @@ export default function ImportPage() {
       return;
     }
 
-    if (selectedFile.size > 5 * 1024 * 1024) {
-      setError('حجم الملف كبير جدًا. الحد الأقصى 5MB');
+    if (selectedFile.size > 10 * 1024 * 1024) {
+      setError('حجم الملف كبير جدًا. الحد الأقصى 10MB');
       return;
     }
 
@@ -125,6 +131,31 @@ export default function ImportPage() {
     reader.readAsBinaryString(selectedFile);
   }
 
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    setIsDragging(true);
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault();
+    setIsDragging(false);
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setIsDragging(false);
+    const droppedFile = e.dataTransfer.files?.[0];
+    processFile(droppedFile);
+  }
+
+  function handlePlatformChange(newPlatform: 'SALLA' | 'SHOPIFY') {
+    setPlatform(newPlatform);
+    setPreview([]);
+    setFile(null);
+    setResult(null);
+    setError('');
+  }
+
   async function handleImport() {
     if (!file) return;
     setImporting(true);
@@ -173,7 +204,7 @@ export default function ImportPage() {
       <main className="max-w-6xl mx-auto px-4 py-6">
         <div className="card p-6 mb-6">
           <h2 className="text-lg font-semibold text-text-primary mb-4">مصدر الملف</h2>
-          
+
           <div className="flex gap-4 mb-4">
             <label className={`flex items-center gap-2 cursor-pointer px-4 py-2 rounded-lg border ${platform === 'SALLA' ? 'border-primary bg-primary/10 text-primary' : 'border-border text-text-secondary'}`}>
               <input
@@ -181,7 +212,7 @@ export default function ImportPage() {
                 name="platform"
                 value="SALLA"
                 checked={platform === 'SALLA'}
-                onChange={() => { setPlatform('SALLA'); setPreview([]); setFile(null); setResult(null); }}
+                onChange={() => handlePlatformChange('SALLA')}
                 className="hidden"
               />
               سلة
@@ -192,22 +223,91 @@ export default function ImportPage() {
                 name="platform"
                 value="SHOPIFY"
                 checked={platform === 'SHOPIFY'}
-                onChange={() => { setPlatform('SHOPIFY'); setPreview([]); setFile(null); setResult(null); }}
+                onChange={() => handlePlatformChange('SHOPIFY')}
                 className="hidden"
               />
               Shopify
             </label>
           </div>
+        </div>
 
-          <p className="text-sm text-text-secondary mb-4">
-            {platform === 'SALLA' 
-              ? 'الأعمدة المطلوبة: رقم الطلب، اسم العميل، رقم الجوال. الأعمدة الاختيارية: حالة الطلب، المبلغ'
-              : 'الأعمدة المطلوبة: Name, Billing Name, Billing Phone. الأعمدة الاختيارية: Email, Financial Status, Subtotal'
-            }
-          </p>
+        <div className="card p-6 mb-6">
+          <h2 className="text-lg font-semibold text-text-primary mb-4">رفع الملف</h2>
+
+          <div
+            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+              isDragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+            }`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              onChange={handleFileSelect}
+              className="hidden"
+              id="file-input"
+            />
+            <label htmlFor="file-input" className="cursor-pointer">
+              <div className="mb-4">
+                <svg className="w-12 h-12 mx-auto text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+              </div>
+              <p className="text-text-primary font-medium mb-2">
+                اسحب ملف الطلبات هنا أو اضغط لاختيار الملف
+              </p>
+              <p className="text-sm text-text-secondary mb-4">
+                الملفات المسموحة: .xlsx, .xls, .csv
+              </p>
+              <p className="text-xs text-text-secondary">
+                يفضل ألا يتجاوز حجم الملف 10MB
+              </p>
+            </label>
+          </div>
+
+          {file && (
+            <div className="mt-4 p-4 bg-background-beige rounded-lg flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <div>
+                  <p className="text-text-primary font-medium">{file.name}</p>
+                  <p className="text-sm text-text-secondary">{(file.size / 1024).toFixed(1)} KB</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setFile(null); setPreview([]); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                className="text-red-500 hover:text-red-700"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          )}
+
+          <div className="mt-4 p-4 bg-background-beige rounded-lg">
+            <h3 className="text-sm font-semibold text-text-primary mb-2">تعليمات الاستيراد</h3>
+            {platform === 'SALLA' ? (
+              <div className="text-sm text-text-secondary">
+                <p className="mb-2">يرجى رفع ملف الطلبات المصدر من سلة.</p>
+                <p><strong>الأعمدة المطلوبة:</strong> رقم الطلب، اسم العميل، رقم الجوال</p>
+                <p><strong>الأعمدة الاختيارية:</strong> حالة الطلب، المبلغ</p>
+              </div>
+            ) : (
+              <div className="text-sm text-text-secondary">
+                <p className="mb-2">يرجى رفع ملف Orders CSV المصدر من Shopify.</p>
+                <p><strong>الأعمدة المتوقعة:</strong> Name, Email, Billing Name, Billing Phone, Financial Status, Subtotal</p>
+              </div>
+            )}
+          </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mb-4">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mt-4">
               {error}
             </div>
           )}
@@ -245,13 +345,13 @@ export default function ImportPage() {
               <button
                 onClick={handleImport}
                 disabled={importing}
-                className="btn-primary"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary text-white font-medium rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50"
               >
                 {importing ? 'جاري الاستيراد...' : 'اعتماد الاستيراد'}
               </button>
               <button
-                onClick={() => { setPreview([]); setFile(null); }}
-                className="btn-secondary"
+                onClick={() => { setPreview([]); setFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-border text-text-secondary font-medium rounded-lg hover:bg-background-cream transition-colors"
               >
                 إلغاء
               </button>
@@ -262,7 +362,7 @@ export default function ImportPage() {
         {result && (
           <div className="card p-6">
             <h3 className="text-lg font-semibold text-text-primary mb-4">تقرير الاستيراد</h3>
-            
+
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
               <div className="bg-green-50 rounded-lg p-4 text-center">
                 <p className="text-2xl font-bold text-green-700">{result.summary.added}</p>
