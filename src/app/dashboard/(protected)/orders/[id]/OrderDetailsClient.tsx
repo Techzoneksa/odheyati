@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -67,6 +67,14 @@ export default function OrderDetailsClient({ order, proofUrl }: Props) {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  useEffect(() => {
+    if (statusMessage) {
+      const timer = setTimeout(() => setStatusMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [statusMessage]);
 
   async function handleFileUpload(fileList: FileList | null) {
     if (!fileList || fileList.length === 0) return;
@@ -106,16 +114,24 @@ export default function OrderDetailsClient({ order, proofUrl }: Props) {
 
   async function handleStatusChange(newStatus: string) {
     setUpdatingStatus(true);
+    setStatusMessage(null);
     try {
       const parsed = proofStatusSchema.parse({ proofStatus: newStatus });
-      await fetch(`/api/orders/${order.id}/status`, {
+      const response = await fetch(`/api/orders/${order.id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(parsed),
       });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update');
+      }
+      
+      setStatusMessage({ type: 'success', text: 'تم تحديث حالة التوثيق بنجاح' });
       router.refresh();
     } catch (error) {
       console.error('Status update error:', error);
+      setStatusMessage({ type: 'error', text: 'تعذر تحديث الحالة، حاول مرة أخرى' });
     }
     setUpdatingStatus(false);
   }
@@ -295,6 +311,15 @@ export default function OrderDetailsClient({ order, proofUrl }: Props) {
               <p className="text-sm text-text-secondary">
                 حالة سلة: {order.sallaStatus || '-'}
               </p>
+              {statusMessage && (
+                <div className={`mt-3 px-3 py-2 rounded-lg text-sm ${
+                  statusMessage.type === 'success' 
+                    ? 'bg-green-50 text-green-700 border border-green-200' 
+                    : 'bg-red-50 text-red-700 border border-red-200'
+                }`}>
+                  {statusMessage.text}
+                </div>
+              )}
             </div>
 
             <div className="card p-6">
