@@ -70,11 +70,13 @@ export async function GET(request: Request) {
 
   const whereClause: any = {};
 
-  if (status && status !== 'all') {
+  const ignoreValues = ['all', 'الكل', '', null, undefined];
+
+  if (status && !ignoreValues.includes(status)) {
     whereClause.proofStatus = status;
   }
 
-  if (platform && platform !== 'all' && platform.trim() !== '') {
+  if (platform && !ignoreValues.includes(platform) && platform.trim() !== '') {
     whereClause.platform = platform;
   }
 

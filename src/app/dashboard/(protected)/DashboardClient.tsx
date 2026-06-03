@@ -65,22 +65,22 @@ function StatCard({ label, value, color }: StatCardProps) {
 function normalizeMobileForSearch(mobile: string): string[] {
   const variations: string[] = [];
   let cleaned = mobile.replace(/[\s\-()+\[\]]/g, '');
-  
+
   const countryCodes = ['966', '971', '965', '974', '973', '968'];
-  
+
   if (cleaned.startsWith('+')) {
     cleaned = cleaned.substring(1);
   }
-  
+
   if (cleaned.startsWith('00')) {
     cleaned = cleaned.substring(2);
     variations.push(cleaned);
   }
-  
+
   if (cleaned.startsWith('0') && cleaned.length > 9) {
     cleaned = cleaned.substring(1);
   }
-  
+
   let detectedCode = '966';
   for (const code of countryCodes) {
     if (cleaned.startsWith(code)) {
@@ -88,9 +88,9 @@ function normalizeMobileForSearch(mobile: string): string[] {
       break;
     }
   }
-  
+
   variations.push(cleaned);
-  
+
   if (cleaned.startsWith(detectedCode)) {
     const localNum = cleaned.substring(detectedCode.length);
     variations.push(localNum);
@@ -98,21 +98,21 @@ function normalizeMobileForSearch(mobile: string): string[] {
       variations.push(localNum.substring(1));
     }
   }
-  
+
   for (const code of countryCodes) {
     if (!cleaned.startsWith(code) && cleaned.length >= 9) {
       variations.push(code + cleaned);
     }
   }
-  
+
   if (cleaned.length >= 9) {
     variations.push(cleaned.slice(-9));
   }
-  
+
   if (cleaned.length >= 7) {
     variations.push(cleaned.slice(-7));
   }
-  
+
   return Array.from(new Set(variations)).filter(v => v.length >= 7);
 }
 
@@ -149,8 +149,8 @@ export default function DashboardClient() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [mobileSearch, setMobileSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [platformFilter, setPlatformFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [platformFilter, setPlatformFilter] = useState('all');
   const [logoutLoading, setLogoutLoading] = useState(false);
 
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -195,12 +195,27 @@ export default function DashboardClient() {
   async function fetchOrders() {
     setLoading(true);
     const params = new URLSearchParams();
-    if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter);
-    if (platformFilter && platformFilter !== 'all') params.set('platform', platformFilter);
-    if (search) params.set('orderNumber', search);
-    if (mobileSearch) params.set('mobile', mobileSearch);
 
-    const res = await fetch(`/api/orders?${params}`);
+    if (statusFilter && statusFilter !== 'all') {
+      params.set('status', statusFilter);
+    }
+
+    if (platformFilter && platformFilter !== 'all') {
+      params.set('platform', platformFilter);
+    }
+
+    if (search && search.trim() !== '') {
+      params.set('orderNumber', search);
+    }
+
+    if (mobileSearch && mobileSearch.trim() !== '') {
+      params.set('mobile', mobileSearch);
+    }
+
+    const queryString = params.toString();
+    const url = queryString ? `/api/orders?${queryString}` : '/api/orders';
+
+    const res = await fetch(url);
     if (res.ok) {
       const data = await res.json();
       setOrders(data);
@@ -304,8 +319,8 @@ export default function DashboardClient() {
   function handleClear() {
     setSearch('');
     setMobileSearch('');
-    setStatusFilter('');
-    setPlatformFilter('');
+    setStatusFilter('all');
+    setPlatformFilter('all');
     setSearchResults([]);
     setMobileResults([]);
     setShowSearchDropdown(false);
@@ -320,6 +335,10 @@ export default function DashboardClient() {
   }
 
   const filteredOrders = orders;
+  const hasActiveFilters = (search && search.trim() !== '') ||
+    (mobileSearch && mobileSearch.trim() !== '') ||
+    (statusFilter && statusFilter !== 'all') ||
+    (platformFilter && platformFilter !== 'all');
 
   return (
     <div className="min-h-screen bg-background-cream">
@@ -507,7 +526,7 @@ export default function DashboardClient() {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="input-field"
               >
-                <option value="">الكل</option>
+                <option value="all">الكل</option>
                 <option value="PENDING">بانتظار</option>
                 <option value="IN_PROGRESS">قيد التنفيذ</option>
                 <option value="SLAUGHTERED">تم الذبح</option>
@@ -525,7 +544,7 @@ export default function DashboardClient() {
                 onChange={(e) => setPlatformFilter(e.target.value)}
                 className="input-field"
               >
-                <option value="">الكل</option>
+                <option value="all">الكل</option>
                 <option value="SALLA">سلة</option>
                 <option value="SHOPIFY">Shopify</option>
                 <option value="MANUAL">يدوي</option>
@@ -558,82 +577,88 @@ export default function DashboardClient() {
 
         {loading ? (
           <div className="text-center py-12 text-text-secondary">جاري التحميل...</div>
-        ) : filteredOrders.length === 0 ? (
-          <div className="card p-8 text-center">
-            <div className="text-text-secondary mb-4">لا توجد طلبات مطابقة لبحثك</div>
-            <button
-              onClick={handleClear}
-              className="inline-flex items-center gap-2 px-4 py-2 border border-border text-text-secondary font-medium rounded-lg hover:bg-background-cream transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-              مسح الفلاتر
-            </button>
-          </div>
         ) : (
           <div className="card overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[800px]">
-                <thead className="bg-background-beige">
-                  <tr>
-                    <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap">المصدر</th>
-                    <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap">رقم الطلب</th>
-                    <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap">العميل</th>
-                    <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap hidden sm:table-cell">الجوال</th>
-                    <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap hidden md:table-cell">حالة سلة</th>
-                    <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap">التوثيق</th>
-                    <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap hidden sm:table-cell">الملفات</th>
-                    <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap hidden lg:table-cell">التاريخ</th>
-                    <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {filteredOrders.map((order) => {
-                    const imagesCount = order.files.filter((f) => f.type === 'IMAGE').length;
-                    const videosCount = order.files.filter((f) => f.type === 'VIDEO').length;
+            {filteredOrders.length === 0 && hasActiveFilters ? (
+              <div className="p-8 text-center">
+                <p className="text-text-secondary">لا توجد نتائج</p>
+                <button
+                  onClick={handleClear}
+                  className="mt-4 inline-flex items-center gap-2 px-4 py-2 border border-border text-text-secondary font-medium rounded-lg hover:bg-background-cream transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  مسح الفلاتر
+                </button>
+              </div>
+            ) : filteredOrders.length === 0 ? (
+              <div className="p-8 text-center">
+                <p className="text-text-secondary">لا توجد طلبات حتى الآن</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[800px]">
+                  <thead className="bg-background-beige">
+                    <tr>
+                      <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap">المصدر</th>
+                      <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap">رقم الطلب</th>
+                      <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap">العميل</th>
+                      <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap hidden sm:table-cell">الجوال</th>
+                      <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap hidden md:table-cell">حالة سلة</th>
+                      <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap">التوثيق</th>
+                      <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap hidden sm:table-cell">الملفات</th>
+                      <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap hidden lg:table-cell">التاريخ</th>
+                      <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {filteredOrders.map((order) => {
+                      const imagesCount = order.files.filter((f) => f.type === 'IMAGE').length;
+                      const videosCount = order.files.filter((f) => f.type === 'VIDEO').length;
 
-                    return (
-                      <tr key={order.id} className="hover:bg-background-cream/50">
-                        <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
-                          <span className={`px-2 py-1 rounded text-xs ${platformLabels[order.platform]?.color || 'bg-gray-100 text-gray-800'}`}>
-                            {platformLabels[order.platform]?.label || order.platform}
-                          </span>
-                        </td>
-                        <td className="px-3 sm:px-4 py-3 font-mono text-xs sm:text-sm whitespace-nowrap" dir="ltr">{order.orderNumber}</td>
-                        <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm whitespace-nowrap">{order.customerName}</td>
-                        <td className="px-3 sm:px-4 py-3 font-mono text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell" dir="ltr">{order.customerMobile}</td>
-                        <td className="px-3 sm:px-4 py-3 hidden md:table-cell">
-                          <span className="text-xs bg-gray-100 px-2 py-1 rounded whitespace-nowrap">
-                            {order.sallaStatus || '-'}
-                          </span>
-                        </td>
-                        <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
-                          <span className={`status-badge status-${order.proofStatus.toLowerCase().replace('_', '-')}`}>
-                            {statusLabels[order.proofStatus] || order.proofStatus}
-                          </span>
-                        </td>
-                        <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">
-                          {imagesCount > 0 && <span className="text-blue-600">📷 {imagesCount}</span>}
-                          {videosCount > 0 && <span className="text-purple-600 mr-1">🎬 {videosCount}</span>}
-                        </td>
-                        <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm text-text-secondary whitespace-nowrap hidden lg:table-cell">
-                          {new Date(order.createdAt).toLocaleDateString('ar-SA')}
-                        </td>
-                        <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
-                          <Link
-                            href={`/dashboard/orders/${order.id}`}
-                            className="text-primary hover:underline text-xs sm:text-sm"
-                          >
-                            فتح
-                          </Link>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                      return (
+                        <tr key={order.id} className="hover:bg-background-cream/50">
+                          <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
+                            <span className={`px-2 py-1 rounded text-xs ${platformLabels[order.platform]?.color || 'bg-gray-100 text-gray-800'}`}>
+                              {platformLabels[order.platform]?.label || order.platform}
+                            </span>
+                          </td>
+                          <td className="px-3 sm:px-4 py-3 font-mono text-xs sm:text-sm whitespace-nowrap" dir="ltr">{order.orderNumber}</td>
+                          <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm whitespace-nowrap">{order.customerName}</td>
+                          <td className="px-3 sm:px-4 py-3 font-mono text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell" dir="ltr">{order.customerMobile}</td>
+                          <td className="px-3 sm:px-4 py-3 hidden md:table-cell">
+                            <span className="text-xs bg-gray-100 px-2 py-1 rounded whitespace-nowrap">
+                              {order.sallaStatus || '-'}
+                            </span>
+                          </td>
+                          <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
+                            <span className={`status-badge status-${order.proofStatus.toLowerCase().replace('_', '-')}`}>
+                              {statusLabels[order.proofStatus] || order.proofStatus}
+                            </span>
+                          </td>
+                          <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">
+                            {imagesCount > 0 && <span className="text-blue-600">📷 {imagesCount}</span>}
+                            {videosCount > 0 && <span className="text-purple-600 mr-1">🎬 {videosCount}</span>}
+                          </td>
+                          <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm text-text-secondary whitespace-nowrap hidden lg:table-cell">
+                            {new Date(order.createdAt).toLocaleDateString('ar-SA')}
+                          </td>
+                          <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
+                            <Link
+                              href={`/dashboard/orders/${order.id}`}
+                              className="text-primary hover:underline text-xs sm:text-sm"
+                            >
+                              فتح
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </main>
