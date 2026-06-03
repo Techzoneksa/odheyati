@@ -58,20 +58,36 @@ export default async function OrderDetailsPage({ params }: Props) {
   };
   let filesWithUrls: FileWithUrl[] = [];
 
-  try {
-    filesWithUrls = await Promise.all(
-      rawFiles.map(async (file): Promise<FileWithUrl> => ({
-        ...file,
-        url: await getSignedDownloadUrl(file.storageKey),
-      }))
-    );
-  } catch (urlError) {
-    console.error('SIGNED_URL_ERROR', {
-      orderId: id,
-      fileId: rawFiles.map(f => f.id),
-      errorMessage: urlError instanceof Error ? urlError.message : String(urlError)
-    });
+  const r2Ready = !!(
+    process.env.CLOUDFLARE_ACCOUNT_ID &&
+    process.env.CLOUDFLARE_R2_ACCESS_KEY_ID &&
+    process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY &&
+    process.env.CLOUDFLARE_R2_BUCKET
+  );
+
+  if (!r2Ready) {
     filesWithUrls = rawFiles.map(file => ({ ...file, url: '' }));
+  } else {
+    try {
+      filesWithUrls = await Promise.all(
+        rawFiles.map(async (file): Promise<FileWithUrl> => {
+          let url = '';
+          try {
+            url = await getSignedDownloadUrl(file.storageKey);
+          } catch {
+            url = '';
+          }
+          return { ...file, url };
+        })
+      );
+    } catch (urlError) {
+      console.error('SIGNED_URL_ERROR', {
+        orderId: id,
+        fileId: rawFiles.map(f => f.id),
+        errorMessage: urlError instanceof Error ? urlError.message : String(urlError)
+      });
+      filesWithUrls = rawFiles.map(file => ({ ...file, url: '' }));
+    }
   }
 
   return (

@@ -12,6 +12,12 @@ export async function GET(
       return NextResponse.json({ error: 'Token is required' }, { status: 400 });
     }
 
+    console.log('PROOF_LOOKUP', {
+      receivedToken: token,
+      tokenLength: token.length,
+      tokenType: typeof token,
+    });
+
     const order = await prisma.order.findUnique({
       where: { proofToken: token },
       include: {
@@ -20,6 +26,11 @@ export async function GET(
           orderBy: [{ type: 'asc' }, { sortOrder: 'asc' }],
         },
       },
+    });
+
+    console.log('PROOF_RESULT', {
+      found: !!order,
+      orderId: order?.id,
     });
 
     if (!order) {
