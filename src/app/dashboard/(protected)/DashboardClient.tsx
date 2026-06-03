@@ -215,10 +215,29 @@ export default function DashboardClient() {
     const queryString = params.toString();
     const url = queryString ? `/api/orders?${queryString}` : '/api/orders';
 
-    const res = await fetch(url);
+    console.log('=== ORDERS DEBUG ===');
+    console.log('URL:', url);
+    console.log('Status filter:', statusFilter);
+    console.log('Platform filter:', platformFilter);
+    console.log('===================');
+
+    const res = await fetch(url, {
+      credentials: 'include'
+    });
+    console.log('Response status:', res.status);
+    console.log('Response ok:', res.ok);
+
     if (res.ok) {
       const data = await res.json();
+      console.log('Data type:', typeof data);
+      console.log('Is array:', Array.isArray(data));
+      console.log('Data length:', data?.length);
       setOrders(data);
+    } else if (res.status === 401) {
+      console.log('Auth error - redirecting to login');
+      window.location.href = '/dashboard/login';
+    } else {
+      console.log('API error:', res.status);
     }
     setLoading(false);
   }
