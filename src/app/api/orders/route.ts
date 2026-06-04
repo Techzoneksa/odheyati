@@ -68,7 +68,7 @@ export async function GET(request: Request) {
     const mobile = searchParams.get('mobile');
     const status = searchParams.get('status');
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const limit = 50;
     const skip = (page - 1) * limit;
 
     const whereClause: any = {};

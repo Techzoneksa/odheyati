@@ -7,12 +7,10 @@ import Link from 'next/link';
 interface Order {
   id: string;
   orderNumber: string;
-  platform: string;
   customerName: string;
   customerMobile: string;
   sallaStatus: string | null;
   proofStatus: string;
-  files: { type: string }[];
   createdAt: string;
 }
 
@@ -25,15 +23,6 @@ interface Stats {
   withFilesOrders: number;
   withoutFilesOrders: number;
   cancelledOrders: number;
-}
-
-interface SearchResult {
-  id: string;
-  orderNumber: string;
-  customerName: string;
-  customerMobileMasked: string;
-  proofStatus: string;
-  sallaStatus: string | null;
 }
 
 interface StatCardProps {
@@ -62,60 +51,6 @@ function StatCard({ label, value, color }: StatCardProps) {
   );
 }
 
-function normalizeMobileForSearch(mobile: string): string[] {
-  const variations: string[] = [];
-  let cleaned = mobile.replace(/[\s\-()+\[\]]/g, '');
-
-  const countryCodes = ['966', '971', '965', '974', '973', '968'];
-
-  if (cleaned.startsWith('+')) {
-    cleaned = cleaned.substring(1);
-  }
-
-  if (cleaned.startsWith('00')) {
-    cleaned = cleaned.substring(2);
-    variations.push(cleaned);
-  }
-
-  if (cleaned.startsWith('0') && cleaned.length > 9) {
-    cleaned = cleaned.substring(1);
-  }
-
-  let detectedCode = '966';
-  for (const code of countryCodes) {
-    if (cleaned.startsWith(code)) {
-      detectedCode = code;
-      break;
-    }
-  }
-
-  variations.push(cleaned);
-
-  if (cleaned.startsWith(detectedCode)) {
-    const localNum = cleaned.substring(detectedCode.length);
-    variations.push(localNum);
-    if (localNum.startsWith('0')) {
-      variations.push(localNum.substring(1));
-    }
-  }
-
-  for (const code of countryCodes) {
-    if (!cleaned.startsWith(code) && cleaned.length >= 9) {
-      variations.push(code + cleaned);
-    }
-  }
-
-  if (cleaned.length >= 9) {
-    variations.push(cleaned.slice(-9));
-  }
-
-  if (cleaned.length >= 7) {
-    variations.push(cleaned.slice(-7));
-  }
-
-  return Array.from(new Set(variations)).filter(v => v.length >= 7);
-}
-
 const statusLabels: Record<string, string> = {
   PENDING: 'بانتظار',
   IN_PROGRESS: 'قيد التنفيذ',
@@ -136,12 +71,6 @@ const statusColors: Record<string, string> = {
   CANCELLED: 'bg-red-100 text-red-800',
 };
 
-const platformLabels: Record<string, { label: string; color: string }> = {
-  SALLA: { label: 'سلة', color: 'bg-blue-100 text-blue-800' },
-  SHOPIFY: { label: 'Shopify', color: 'bg-green-100 text-green-800' },
-  MANUAL: { label: 'يدوي', color: 'bg-gray-100 text-gray-800' },
-};
-
 export default function DashboardClient() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -149,50 +78,14 @@ export default function DashboardClient() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [mobileSearch, setMobileSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('');
   const [logoutLoading, setLogoutLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [mobileResults, setMobileResults] = useState<SearchResult[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [mobileLoading, setMobileLoading] = useState(false);
-  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
-  const [showMobileDropdown, setShowMobileDropdown] = useState(false);
-
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const mobileTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const searchRef = useRef<HTMLDivElement>(null);
-  const mobileRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     fetchStats();
-    const timer = setTimeout(() => {
-      fetchOrders(1);
-    }, 50);
-    return () => clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchOrders(currentPage);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [search, mobileSearch, statusFilter, currentPage]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
-        setShowSearchDropdown(false);
-      }
-      if (mobileRef.current && !mobileRef.current.contains(event.target as Node)) {
-        setShowMobileDropdown(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    fetchOrders(1);
   }, []);
 
   async function fetchStats() {
@@ -203,144 +96,42 @@ export default function DashboardClient() {
     }
   }
 
-  async function fetchOrders(page = 1) {
+  async function fetchOrders(page: number = 1) {
     setLoading(true);
     const params = new URLSearchParams();
     params.set('page', page.toString());
     params.set('limit', '50');
 
-    if (statusFilter && statusFilter !== 'all') {
+    if (statusFilter && statusFilter !== 'all' && statusFilter !== '') {
       params.set('status', statusFilter);
     }
+    if (search) params.set('orderNumber', search);
+    if (mobileSearch) params.set('mobile', mobileSearch);
 
-    if (search && search.trim() !== '') {
-      params.set('orderNumber', search);
-    }
-
-    if (mobileSearch && mobileSearch.trim() !== '') {
-      params.set('mobile', mobileSearch);
-    }
-
-    const url = `/api/orders?${params.toString()}`;
-
-    try {
-      const res = await fetch(url, { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        const ordersList = Array.isArray(data) ? data : (data.orders ?? []);
-        setOrders(ordersList);
-        setCurrentPage(data.page || 1);
-        setTotalPages(data.totalPages || 1);
-      } else {
-        console.error('DASHBOARD_FETCH_ERROR', { status: res.status });
-      }
-    } catch (err) {
-      console.error('DASHBOARD_ORDERS_FAILED', { message: err instanceof Error ? err.message : String(err) });
+    const res = await fetch(`/api/orders?${params}`, { credentials: 'include' });
+    if (res.ok) {
+      const data = await res.json();
+      setOrders(Array.isArray(data) ? data : (data.orders ?? []));
+      setCurrentPage(data.page || 1);
+      setTotalPages(data.totalPages || 1);
+    } else {
+      setOrders([]);
     }
     setLoading(false);
   }
 
-  async function handleLiveSearch(query: string) {
-    if (query.length < 3) {
-      setSearchResults([]);
-      setShowSearchDropdown(false);
-      return;
-    }
-
-    setSearchLoading(true);
-    try {
-      const res = await fetch(`/api/dashboard/search?q=${encodeURIComponent(query)}&type=order`);
-      if (res.ok) {
-        const data = await res.json();
-        setSearchResults(data);
-        setShowSearchDropdown(true);
-      }
-    } catch {
-      setSearchResults([]);
-    }
-    setSearchLoading(false);
-  }
-
-  async function handleMobileSearch(query: string) {
-    if (query.length < 3) {
-      setMobileResults([]);
-      setShowMobileDropdown(false);
-      return;
-    }
-
-    setMobileLoading(true);
-    try {
-      const res = await fetch(`/api/dashboard/search?q=${encodeURIComponent(query)}&type=mobile`);
-      if (res.ok) {
-        const data = await res.json();
-        setMobileResults(data);
-        setShowMobileDropdown(true);
-      }
-    } catch {
-      setMobileResults([]);
-    }
-    setMobileLoading(false);
-  }
-
-  function handleSearchChange(value: string) {
-    setSearch(value);
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-    searchTimeoutRef.current = setTimeout(() => {
-      handleLiveSearch(value);
-    }, 300);
-  }
-
-  function handleMobileChange(value: string) {
-    setMobileSearch(value);
-    if (mobileTimeoutRef.current) {
-      clearTimeout(mobileTimeoutRef.current);
-    }
-    mobileTimeoutRef.current = setTimeout(() => {
-      handleMobileSearch(value);
-    }, 300);
-  }
-
-  function handleSearchKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      if (searchResults.length > 0) {
-        router.push(`/dashboard/orders/${searchResults[0].id}`);
-      } else {
-        fetchOrders();
-      }
-      setShowSearchDropdown(false);
-    }
-  }
-
-  function handleMobileKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      if (mobileResults.length > 0) {
-        router.push(`/dashboard/orders/${mobileResults[0].id}`);
-      } else {
-        fetchOrders();
-      }
-      setShowMobileDropdown(false);
-    }
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setShowSearchDropdown(false);
-    setShowMobileDropdown(false);
-    await fetchOrders();
+    setSearch(search.trim());
+    setMobileSearch(mobileSearch.trim());
+    await fetchOrders(1);
   }
 
   function handleClear() {
     setSearch('');
     setMobileSearch('');
-    setStatusFilter('all');
-    setSearchResults([]);
-    setMobileResults([]);
-    setShowSearchDropdown(false);
-    setShowMobileDropdown(false);
+    setStatusFilter('');
+    setCurrentPage(1);
     fetchOrders(1);
   }
 
@@ -349,11 +140,6 @@ export default function DashboardClient() {
     await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/dashboard/login');
   }
-
-  const filteredOrders = orders;
-  const hasActiveFilters = (search && search.trim() !== '') ||
-    (mobileSearch && mobileSearch.trim() !== '') ||
-    (statusFilter && statusFilter !== 'all');
 
   return (
     <div className="min-h-screen bg-background-cream">
@@ -420,118 +206,28 @@ export default function DashboardClient() {
 
         <form onSubmit={handleSubmit} className="card p-4 sm:p-6 mb-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4">
-            <div ref={searchRef} className="relative">
+            <div>
               <label className="label">بحث برقم الطلب</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  onKeyDown={handleSearchKeyDown}
-                  className="input-field pr-10"
-                  placeholder="مثال: 262190392"
-                  dir="ltr"
-                />
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary">
-                  {searchLoading ? (
-                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                  ) : (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                  )}
-                </div>
-              </div>
-              {showSearchDropdown && searchResults.length > 0 && (
-                <div className="absolute z-20 w-full mt-1 bg-background-white border border-border rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                  {searchResults.map((result) => (
-                    <button
-                      key={result.id}
-                      type="button"
-                      onClick={() => {
-                        router.push(`/dashboard/orders/${result.id}`);
-                        setShowSearchDropdown(false);
-                      }}
-                      className="w-full text-right px-4 py-3 hover:bg-background-cream border-b border-border last:border-b-0"
-                    >
-                      <div className="flex justify-between items-center">
-                        <span className="font-mono text-sm" dir="ltr">{result.orderNumber}</span>
-                        <span className={`px-2 py-0.5 rounded-full text-xs ${statusColors[result.proofStatus] || 'bg-gray-100'}`}>
-                          {statusLabels[result.proofStatus] || result.proofStatus}
-                        </span>
-                      </div>
-                      <div className="text-xs text-text-secondary mt-1">
-                        {result.customerName} • {result.customerMobileMasked}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-              {showSearchDropdown && search.length >= 3 && searchResults.length === 0 && !searchLoading && (
-                <div className="absolute z-20 w-full mt-1 bg-background-white border border-border rounded-lg shadow-lg px-4 py-3 text-sm text-text-secondary text-center">
-                  لا توجد نتائج مطابقة
-                </div>
-              )}
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="input-field"
+                placeholder="مثال: 262190392"
+                dir="ltr"
+              />
             </div>
 
-            <div ref={mobileRef} className="relative">
+            <div>
               <label className="label">بحث بالجوال</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={mobileSearch}
-                  onChange={(e) => handleMobileChange(e.target.value)}
-                  onKeyDown={handleMobileKeyDown}
-                  className="input-field pr-10"
-                  placeholder="مثال: 532666623 أو 9665XXXXXXXX"
-                  dir="ltr"
-                />
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary">
-                  {mobileLoading ? (
-                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                  ) : (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                  )}
-                </div>
-              </div>
-              {showMobileDropdown && mobileResults.length > 0 && (
-                <div className="absolute z-20 w-full mt-1 bg-background-white border border-border rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                  {mobileResults.map((result) => (
-                    <button
-                      key={result.id}
-                      type="button"
-                      onClick={() => {
-                        router.push(`/dashboard/orders/${result.id}`);
-                        setShowMobileDropdown(false);
-                      }}
-                      className="w-full text-right px-4 py-3 hover:bg-background-cream border-b border-border last:border-b-0"
-                    >
-                      <div className="flex justify-between items-center">
-                        <span className="font-mono text-sm" dir="ltr">{result.orderNumber}</span>
-                        <span className={`px-2 py-0.5 rounded-full text-xs ${statusColors[result.proofStatus] || 'bg-gray-100'}`}>
-                          {statusLabels[result.proofStatus] || result.proofStatus}
-                        </span>
-                      </div>
-                      <div className="text-xs text-text-secondary mt-1">
-                        {result.customerName} • {result.customerMobileMasked}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-              {showMobileDropdown && mobileSearch.length >= 3 && mobileResults.length === 0 && !mobileLoading && (
-                <div className="absolute z-20 w-full mt-1 bg-background-white border border-border rounded-lg shadow-lg px-4 py-3 text-sm text-text-secondary text-center">
-                  لا توجد نتائج مطابقة
-                </div>
-              )}
+              <input
+                type="text"
+                value={mobileSearch}
+                onChange={(e) => setMobileSearch(e.target.value)}
+                className="input-field"
+                placeholder="مثال: 532666623 أو 9665XXXXXXXX"
+                dir="ltr"
+              />
             </div>
 
             <div>
@@ -541,7 +237,7 @@ export default function DashboardClient() {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="input-field"
               >
-                <option value="all">الكل</option>
+                <option value="">الكل</option>
                 <option value="PENDING">بانتظار</option>
                 <option value="IN_PROGRESS">قيد التنفيذ</option>
                 <option value="SLAUGHTERED">تم الذبح</option>
@@ -563,98 +259,101 @@ export default function DashboardClient() {
               </svg>
               بحث
             </button>
+            <button
+              type="button"
+              onClick={handleClear}
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-border text-text-secondary font-medium rounded-lg hover:bg-background-cream transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              مسح
+            </button>
           </div>
         </form>
 
         {loading ? (
           <div className="text-center py-12 text-text-secondary">جاري التحميل...</div>
+        ) : orders.length === 0 ? (
+          <div className="card p-8 text-center">
+            <div className="text-text-secondary mb-4">لا توجد طلبات مطابقة لبحثك</div>
+            <button
+              onClick={handleClear}
+              className="inline-flex items-center gap-2 px-4 py-2 border border-border text-text-secondary font-medium rounded-lg hover:bg-background-cream transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              مسح الفلاتر
+            </button>
+          </div>
         ) : (
           <div className="card overflow-hidden">
-            {filteredOrders.length === 0 && hasActiveFilters ? (
-              <div className="p-8 text-center">
-                <p className="text-text-secondary">لا توجد نتائج مطابقة</p>
-              </div>
-            ) : filteredOrders.length === 0 ? (
-              <div className="p-8 text-center">
-                <p className="text-text-secondary">لا توجد طلبات حتى الآن</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[800px]">
-                  <thead className="bg-background-beige">
-                    <tr>
-                      <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap">رقم الطلب</th>
-                      <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap">العميل</th>
-                      <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap hidden sm:table-cell">الجوال</th>
-                      <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap hidden md:table-cell">حالة سلة</th>
-                      <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap">التوثيق</th>
-                      <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap hidden sm:table-cell">الملفات</th>
-                      <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap hidden lg:table-cell">التاريخ</th>
-                      <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary"></th>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[800px]">
+                <thead className="bg-background-beige">
+                  <tr>
+                    <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap">رقم الطلب</th>
+                    <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap">العميل</th>
+                    <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap hidden sm:table-cell">الجوال</th>
+                    <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap hidden md:table-cell">حالة سلة</th>
+                    <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap">التوثيق</th>
+                    <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary whitespace-nowrap hidden lg:table-cell">التاريخ</th>
+                    <th className="text-right px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-text-primary"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {orders.map((order) => (
+                    <tr key={order.id} className="hover:bg-background-cream/50">
+                      <td className="px-3 sm:px-4 py-3 font-mono text-xs sm:text-sm whitespace-nowrap" dir="ltr">{order.orderNumber}</td>
+                      <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm whitespace-nowrap">{order.customerName}</td>
+                      <td className="px-3 sm:px-4 py-3 font-mono text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell" dir="ltr">{order.customerMobile}</td>
+                      <td className="px-3 sm:px-4 py-3 hidden md:table-cell">
+                        <span className="text-xs bg-gray-100 px-2 py-1 rounded whitespace-nowrap">
+                          {order.sallaStatus || '-'}
+                        </span>
+                      </td>
+                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
+                        <span className={`status-badge status-${order.proofStatus.toLowerCase().replace('_', '-')}`}>
+                          {statusLabels[order.proofStatus] || order.proofStatus}
+                        </span>
+                      </td>
+                      <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm text-text-secondary whitespace-nowrap hidden lg:table-cell">
+                        {new Date(order.createdAt).toLocaleDateString('ar-SA')}
+                      </td>
+                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
+                        <Link
+                          href={`/dashboard/orders/${order.id}`}
+                          className="text-primary hover:underline text-xs sm:text-sm"
+                        >
+                          فتح
+                        </Link>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {filteredOrders.map((order) => {
-                      const imagesCount = order.files.filter((f) => f.type === 'IMAGE').length;
-                      const videosCount = order.files.filter((f) => f.type === 'VIDEO').length;
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-                      return (
-                        <tr key={order.id} className="hover:bg-background-cream/50">
-                          <td className="px-3 sm:px-4 py-3 font-mono text-xs sm:text-sm whitespace-nowrap" dir="ltr">{order.orderNumber}</td>
-                          <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm whitespace-nowrap">{order.customerName}</td>
-                          <td className="px-3 sm:px-4 py-3 font-mono text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell" dir="ltr">{order.customerMobile}</td>
-                          <td className="px-3 sm:px-4 py-3 hidden md:table-cell">
-                            <span className="text-xs bg-gray-100 px-2 py-1 rounded whitespace-nowrap">
-                              {order.sallaStatus || '-'}
-                            </span>
-                          </td>
-                          <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
-                            <span className={`status-badge status-${order.proofStatus.toLowerCase().replace('_', '-')}`}>
-                              {statusLabels[order.proofStatus] || order.proofStatus}
-                            </span>
-                          </td>
-                          <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">
-                            {imagesCount > 0 && <span className="text-blue-600">📷 {imagesCount}</span>}
-                            {videosCount > 0 && <span className="text-purple-600 mr-1">🎬 {videosCount}</span>}
-                          </td>
-                          <td className="px-3 sm:px-4 py-3 text-xs sm:text-sm text-text-secondary whitespace-nowrap hidden lg:table-cell">
-                            {new Date(order.createdAt).toLocaleDateString('ar-SA')}
-                          </td>
-                          <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
-                            <Link
-                              href={`/dashboard/orders/${order.id}`}
-                              className="text-primary hover:underline text-xs sm:text-sm"
-                            >
-                              فتح
-                            </Link>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-center gap-2 p-4 border-t border-border">
-                    <button
-                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                      disabled={currentPage === 1}
-                      className="px-3 py-1 rounded border border-border text-sm hover:bg-background-cream disabled:opacity-50"
-                    >
-                      السابق
-                    </button>
-                    <span className="text-sm text-text-secondary">
-                      صفحة {currentPage} من {totalPages}
-                    </span>
-                    <button
-                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                      disabled={currentPage === totalPages}
-                      className="px-3 py-1 rounded border border-border text-sm hover:bg-background-cream disabled:opacity-50"
-                    >
-                      التالي
-                    </button>
-                  </div>
-                )}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 p-4 border-t border-border">
+                <button
+                  onClick={() => fetchOrders(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 rounded border border-border text-sm hover:bg-background-cream disabled:opacity-50"
+                >
+                  السابق
+                </button>
+                <span className="text-sm text-text-secondary">
+                  صفحة {currentPage} من {totalPages}
+                </span>
+                <button
+                  onClick={() => fetchOrders(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 rounded border border-border text-sm hover:bg-background-cream disabled:opacity-50"
+                >
+                  التالي
+                </button>
               </div>
             )}
           </div>
