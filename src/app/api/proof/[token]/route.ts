@@ -7,42 +7,40 @@ export async function GET(
 ) {
   try {
     const { token } = await params;
-
-    if (!token) {
-      return NextResponse.json({ error: 'Token is required' }, { status: 400 });
-    }
+    if (!token) return NextResponse.json({ error: 'Token is required' }, { status: 400 });
 
     const cleanToken = token.trim();
 
+    // Try exact match first
     let order = await prisma.order.findUnique({
       where: { proofToken: cleanToken },
-      include: {
-        items: true,
-        files: {
-          orderBy: [{ type: 'asc' }, { sortOrder: 'asc' }],
-        },
-      },
+      include: { items: true, files: { orderBy: [{ type: 'asc' }, { sortOrder: 'asc' }] } },
     });
 
+    // Try reversed format (old tokens: random-timestamp → timestamp-random)
     if (!order && cleanToken.includes('-')) {
       const parts = cleanToken.split('-');
       if (parts.length === 2) {
-        const reversedToken = `${parts[1]}-${parts[0]}`;
+        const reversed = `${parts[1]}-${parts[0]}`;
         order = await prisma.order.findUnique({
-          where: { proofToken: reversedToken },
-          include: {
-            items: true,
-            files: {
-              orderBy: [{ type: 'asc' }, { sortOrder: 'asc' }],
-            },
-          },
+          where: { proofToken: reversed },
+          include: { items: true, files: { orderBy: [{ type: 'asc' }, { sortOrder: 'asc' }] } },
         });
       }
     }
 
+    // Last resort: search by orderNumber extracted from token
     if (!order) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+      const numberMatch = cleanToken.match(/\d{9,}/);
+      if (numberMatch) {
+        order = await prisma.order.findFirst({
+          where: { orderNumber: { contains: numberMatch[0] } },
+          include: { items: true, files: { orderBy: [{ type: 'asc' }, { sortOrder: 'asc' }] } },
+        });
+      }
     }
+
+    if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 });
 
     return NextResponse.json(order);
   } catch (error) {
