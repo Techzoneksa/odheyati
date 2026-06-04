@@ -84,6 +84,7 @@ export default function DashboardClient() {
   const [logoutLoading, setLogoutLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [apiError, setApiError] = useState('');
 
   useEffect(() => {
     fetchStats();
@@ -100,6 +101,7 @@ export default function DashboardClient() {
 
   async function fetchOrders(page: number = 1) {
     setLoading(true);
+    setApiError('');
     const params = new URLSearchParams();
     params.set('page', page.toString());
 
@@ -140,7 +142,13 @@ export default function DashboardClient() {
       }
     } else {
       console.error('DASHBOARD_RESPONSE_ERROR:', res.status, res.statusText);
-      setOrders([]);
+      if (res.status === 401) {
+        setApiError('انتهت الجلسة، سجل الدخول مرة أخرى');
+        router.push('/dashboard/login');
+      } else {
+        setApiError('تعذر تحميل الطلبات');
+        setOrders([]);
+      }
     }
     setLoading(false);
   }
@@ -324,6 +332,11 @@ export default function DashboardClient() {
 
         {loading ? (
           <div className="text-center py-12 text-text-secondary">جاري التحميل...</div>
+        ) : apiError ? (
+          <div className="card p-6 bg-red-50 border border-red-200 text-center">
+            <p className="text-red-700 font-medium">{apiError}</p>
+            <button onClick={handleClear} className="mt-3 text-sm text-red-600 underline">مسح البحث</button>
+          </div>
         ) : orders.length === 0 ? (
           <div className="card p-8 text-center">
             <div className="text-text-secondary mb-4">لا توجد طلبات مطابقة لبحثك</div>
