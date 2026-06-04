@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import ChatWidgetWrapper from './components/ChatWidgetWrapper';
 
 export const metadata: Metadata = {
   title: 'توثيقات أضحيتي',
@@ -16,7 +17,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ar" dir="rtl">
-      <body className="min-h-screen bg-background-cream">{children}</body>
+      <body className="min-h-screen bg-background-cream">
+        {children}
+        <ChatWidgetWrapper />
+      </body>
     </html>
   );
 }
