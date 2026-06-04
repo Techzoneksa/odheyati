@@ -43,6 +43,7 @@ export default async function OrderDetailsPage({ params }: Props) {
   }
 
   const rawFiles = order.files;
+
   type FileWithUrl = {
     id: string;
     createdAt: Date;
@@ -56,7 +57,6 @@ export default async function OrderDetailsPage({ params }: Props) {
     uploadedById: string | null;
     url: string;
   };
-  let filesWithUrls: FileWithUrl[] = [];
 
   const r2Ready = !!(
     process.env.CLOUDFLARE_ACCOUNT_ID &&
@@ -65,37 +65,23 @@ export default async function OrderDetailsPage({ params }: Props) {
     process.env.CLOUDFLARE_R2_BUCKET
   );
 
+  let filesWithUrls: FileWithUrl[] = [];
+
   if (!r2Ready) {
+    console.error('R2_CONFIG_MISSING: skipping signed URLs');
     filesWithUrls = rawFiles.map(file => ({ ...file, url: '' }));
-  } else {
-    if (!r2Ready) {
-    console.error("R2_CONFIG_MISSING: skipping signed URLs in order details");
-    filesWithUrls = rawFiles.map((file) => ({
-      ...file,
-      url: "",
-    }));
   } else {
     filesWithUrls = await Promise.all(
       rawFiles.map(async (file): Promise<FileWithUrl> => {
-        let url = "";
-
+        let url = '';
         try {
           url = await getSignedDownloadUrl(file.storageKey);
-        } catch (error) {
-          console.error("ORDER_DETAILS_SIGNED_URL_FAILED", {
-            fileId: file.id,
-            fileType: file.type,
-            message: error instanceof Error ? error.message : String(error),
-          });
+        } catch (e) {
+          console.error('SIGNED_URL_FAILED', file.id, e);
         }
-
-        return {
-          ...file,
-          url,
-        };
+        return { ...file, url };
       })
     );
-  }
   }
 
   return (
