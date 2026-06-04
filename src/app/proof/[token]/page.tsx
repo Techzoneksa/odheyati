@@ -193,7 +193,7 @@ export default function ProofPage({ params }: Props) {
       setError(null);
       setErrorDetails(null);
 
-      const res = await fetch(`/api/proof/${encodeURIComponent(t)}`);
+      const res = await fetch(`/api/proof/${t}`);
 
       if (!res.ok) {
         if (res.status === 404) {
