@@ -100,7 +100,6 @@ export default function DashboardClient() {
     setLoading(true);
     const params = new URLSearchParams();
     params.set('page', page.toString());
-    params.set('limit', '50');
 
     if (statusFilter && statusFilter !== 'all' && statusFilter !== '') {
       params.set('status', statusFilter);

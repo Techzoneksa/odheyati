@@ -96,7 +96,8 @@ export async function GET(request: Request) {
     }
 
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = 50;
+    const requestedLimit = searchParams.get('limit');
+    const limit = requestedLimit && !isNaN(parseInt(requestedLimit)) ? parseInt(requestedLimit) : 100;
     const skip = (page - 1) * limit;
     const where = Object.keys(whereClause).length > 0 ? whereClause : undefined;
 
@@ -110,7 +111,9 @@ export async function GET(request: Request) {
       prisma.order.count({ where }),
     ]);
 
-    return NextResponse.json({ orders, total, page, limit });
+    const totalPages = Math.ceil(total / limit);
+
+    return NextResponse.json({ orders, total, page, limit, totalPages });
   } catch (error) {
     console.error('ORDERS_API_ERROR', error);
     return NextResponse.json({ error: 'Failed to fetch orders', details: error instanceof Error ? error.message : String(error) }, { status: 500 });
