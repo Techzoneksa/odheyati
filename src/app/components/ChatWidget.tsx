@@ -572,8 +572,6 @@ function playSoftPing() {
 export default function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [showPopup, setShowPopup] = useState(false);
-  const [popupVisible, setPopupVisible] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -587,32 +585,7 @@ export default function ChatWidget() {
 
   useEffect(() => {
     localStorage.setItem('adahi_chat_open', isOpen.toString());
-    if (isOpen) {
-      setShowPopup(false);
-      sessionStorage.setItem('adahi_popup_shown', 'true');
-    }
   }, [isOpen]);
-
-  useEffect(() => {
-    if (isOpen || sessionStorage.getItem('adahi_popup_shown') === 'true') return;
-    const timer = setTimeout(() => {
-      setShowPopup(true);
-      setTimeout(() => setPopupVisible(true), 30);
-      playSoftPing();
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (sessionStorage.getItem('adahi_sound_played') === 'true') return;
-    const handler = () => {
-      playSoftPing();
-      document.removeEventListener('click', handler);
-      document.removeEventListener('touchstart', handler);
-    };
-    document.addEventListener('click', handler, { once: true });
-    document.addEventListener('touchstart', handler, { once: true });
-  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -625,10 +598,6 @@ export default function ChatWidget() {
       buttons: MAIN_OPTIONS,
     }]);
     setIsOpen(true);
-    setPopupVisible(false);
-    setTimeout(() => setShowPopup(false), 200);
-    sessionStorage.setItem('adahi_popup_shown', 'true');
-    sessionStorage.setItem('adahi_greeting_shown', 'true');
   };
 
   const showTrackingPrompt = () => {
@@ -710,9 +679,6 @@ const showGreeting = () => {
       sessionStorage.setItem('adahi_greeting_shown', 'true');
     }
     setIsOpen(true);
-    setPopupVisible(false);
-    setTimeout(() => setShowPopup(false), 200);
-    sessionStorage.setItem('adahi_popup_shown', 'true');
   };
 
   const showSmallTalk = () => {
@@ -722,9 +688,6 @@ const showGreeting = () => {
       buttons: MAIN_OPTIONS,
     }]);
     setIsOpen(true);
-    setPopupVisible(false);
-    setTimeout(() => setShowPopup(false), 200);
-    sessionStorage.setItem('adahi_popup_shown', 'true');
   };
 
   const showFAQResponse = (intent: string) => {
@@ -1107,62 +1070,9 @@ if (proofStatus === 'CANCELLED') {
     }
   };
 
-  const dismissPopup = () => {
-    setPopupVisible(false);
-    setTimeout(() => setShowPopup(false), 200);
-    sessionStorage.setItem('adahi_popup_shown', 'true');
-  };
-
   if (!isOpen) {
     return (
       <div className="fixed z-50" style={{ left: '16px', bottom: '24px' }}>
-        {showPopup && (
-          <div
-            className={`absolute bottom-full mb-3 rounded-2xl shadow-xl overflow-hidden transition-all duration-300 ${popupVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}
-            style={{ backgroundColor: '#fff', direction: 'rtl', boxShadow: '0 4px 20px rgba(0,0,0,0.15)', right: '0', left: '0', maxWidth: 'calc(100vw - 32px)', width: '288px' }}
-          >
-            <div className="p-4" style={{ backgroundColor: '#075E54' }}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">
-                    <span className="text-base">🌿</span>
-                  </div>
-                  <div>
-                    <div className="font-semibold text-white text-sm">حيّاك الله في أضحيتي 🌿</div>
-                    <div className="text-xs text-white/70">متصل الآن</div>
-                  </div>
-                </div>
-                <button onClick={dismissPopup} className="text-white/70 hover:text-white p-1" aria-label="إغلاق">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-            <div className="p-4" style={{ backgroundColor: '#ECE5DD' }}>
-              <p className="text-sm mb-4 leading-relaxed" style={{ color: '#111' }}>
-                أنا مساعد أضحيتي 🌿 أقدر أساعدك في متابعة طلبك، مشاهدة التوثيق، أو طلب خدماتنا.
-              </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={openChat}
-                  className="flex-1 px-3 py-2 rounded-lg text-white text-sm font-medium transition-colors hover:opacity-90"
-                  style={{ backgroundColor: '#25D366' }}
-                >
-                  ابدأ المحادثة
-                </button>
-                <button
-                  onClick={dismissPopup}
-                  className="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:opacity-80"
-                  style={{ backgroundColor: '#ddd', color: '#555' }}
-                >
-                  مو الحين
-                </button>
-              </div>
-            </div>
-            <div className="absolute -bottom-2 left-7 w-4 h-4 rotate-45" style={{ backgroundColor: '#ECE5DD' }} />
-          </div>
-        )}
         <button
           onClick={openChat}
           className="relative group"

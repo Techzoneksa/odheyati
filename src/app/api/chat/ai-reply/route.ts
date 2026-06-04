@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
+const FALLBACK_REPLY = 'أقدر أساعدك في متابعة الطلب، مشاهدة التوثيق، أو طلب خدمات أضحيتي من المتجر. اختر ما يناسبك من الخيارات التالية.';
+const FALLBACK_BUTTONS = [{ label: 'تتبع الطلب', action: 'track' }, { label: 'اطلب من المتجر', action: 'shop' }, { label: '🟢 واتساب', action: 'support' }];
+
 const SYSTEM_PROMPT = `أنت مساعد أضحيتي لخدمة العملاء.
 أجب بالعربية وبأسلوب سعودي لطيف ومختصر.
 أجب فقط بناءً على معلومات أضحيتي التالية.
@@ -93,9 +96,16 @@ export async function POST(req: NextRequest) {
     const aiEnabled = process.env.AI_FALLBACK_ENABLED === 'true';
     const apiKey = process.env.GEMINI_API_KEY;
 
+    console.log('AI_REPLY_ENV_CHECK', {
+      enabled: aiEnabled,
+      hasKey: !!apiKey,
+      envValue: process.env.AI_FALLBACK_ENABLED,
+    });
+
     if (!aiEnabled || !apiKey) {
+      console.log('AI_REPLY_SKIP', { reason: !aiEnabled ? 'AI_FALLBACK_ENABLED != true' : 'GEMINI_API_KEY missing' });
       return NextResponse.json(
-        { reply: 'أقدر أساعدك في متابعة الطلب، مشاهدة التوثيق، أو طلب خدمات أضحيتي من المتجر. اختر ما يناسبك من الخيارات التالية.', buttons: [{ label: 'تتبع الطلب', action: 'track' }, { label: 'اطلب من المتجر', action: 'shop' }, { label: '🟢 واتساب', action: 'support' }] },
+        { reply: FALLBACK_REPLY, buttons: FALLBACK_BUTTONS },
         { status: 200 }
       );
     }
@@ -108,50 +118,76 @@ export async function POST(req: NextRequest) {
     }
 
     if (isPII(message)) {
+      console.log('AI_REPLY_SKIP', { reason: 'PII detected in message' });
       return NextResponse.json(
-        { reply: 'أقدر أساعدك في متابعة الطلب، مشاهدة التوثيق، أو طلب خدمات أضحيتي من المتجر. اختر ما يناسبك من الخيارات التالية.', buttons: [{ label: 'تتبع الطلب', action: 'track' }, { label: 'اطلب من المتجر', action: 'shop' }, { label: '🟢 واتساب', action: 'support' }] },
+        { reply: FALLBACK_REPLY, buttons: FALLBACK_BUTTONS },
         { status: 200 }
       );
     }
+
+    console.log('AI_REPLY_START', { messageLength: message.length });
 
     const prompt = `${SYSTEM_PROMPT}\n\nالعميل يسأل: ${message}`;
 
-    const geminiRes = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.3,
-          maxOutputTokens: 256,
-        },
-      }),
-    });
+    let geminiRes: Response;
+    try {
+      geminiRes = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.3,
+            maxOutputTokens: 256,
+          },
+        }),
+      });
+    } catch (fetchErr) {
+      console.error('AI_REPLY_ERROR', { message: fetchErr instanceof Error ? fetchErr.message : 'fetch failed' });
+      return NextResponse.json(
+        { reply: FALLBACK_REPLY, buttons: FALLBACK_BUTTONS },
+        { status: 200 }
+      );
+    }
 
     if (!geminiRes.ok) {
       const errText = await geminiRes.text();
-      console.error('AI_FALLBACK_ERROR', { status: geminiRes.status, error: errText });
+      console.error('AI_REPLY_ERROR', { status: geminiRes.status, error: errText.substring(0, 200) });
       return NextResponse.json(
-        { reply: 'أقدر أساعدك في متابعة الطلب، مشاهدة التوثيق، أو طلب خدمات أضحيتي من المتجر. اختر ما يناسبك من الخيارات التالية.', buttons: [{ label: 'تتبع الطلب', action: 'track' }, { label: 'اطلب من المتجر', action: 'shop' }, { label: '🟢 واتساب', action: 'support' }] },
+        { reply: FALLBACK_REPLY, buttons: FALLBACK_BUTTONS },
         { status: 200 }
       );
     }
 
-    const geminiData = await geminiRes.json();
+    let geminiData: { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+    try {
+      geminiData = await geminiRes.json();
+    } catch {
+      console.error('AI_REPLY_ERROR', { message: 'failed to parse JSON' });
+      return NextResponse.json(
+        { reply: FALLBACK_REPLY, buttons: FALLBACK_BUTTONS },
+        { status: 200 }
+      );
+    }
+
+    console.log('AI_REPLY_GEMINI_RESPONSE', { hasData: !!geminiData, keys: Object.keys(geminiData || {}) });
+
     const replyText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 
     if (!replyText) {
+      console.error('AI_REPLY_ERROR', { message: 'empty reply from Gemini' });
       return NextResponse.json(
-        { reply: 'أقدر أساعدك في متابعة الطلب، مشاهدة التوثيق، أو طلب خدمات أضحيتي من المتجر. اختر ما يناسبك من الخيارات التالية.', buttons: [{ label: 'تتبع الطلب', action: 'track' }, { label: 'اطلب من المتجر', action: 'shop' }, { label: '🟢 واتساب', action: 'support' }] },
+        { reply: FALLBACK_REPLY, buttons: FALLBACK_BUTTONS },
         { status: 200 }
       );
     }
 
-    return NextResponse.json({ reply: replyText }, { status: 200 });
+    console.log('AI_REPLY_SUCCESS', { replyLength: replyText.length });
+    return NextResponse.json({ reply: replyText, buttons: FALLBACK_BUTTONS }, { status: 200 });
   } catch (error) {
-    console.error('AI_FALLBACK_ERROR', { error: String(error) });
+    console.error('AI_REPLY_ERROR', { message: error instanceof Error ? error.message : 'unknown' });
     return NextResponse.json(
-      { reply: 'أقدر أساعدك في متابعة الطلب، مشاهدة التوثيق، أو طلب خدمات أضحيتي من المتجر. اختر ما يناسبك من الخيارات التالية.', buttons: [{ label: 'تتبع الطلب', action: 'track' }, { label: 'اطلب من المتجر', action: 'shop' }, { label: '🟢 واتساب', action: 'support' }] },
+      { reply: FALLBACK_REPLY, buttons: FALLBACK_BUTTONS },
       { status: 200 }
     );
   }
