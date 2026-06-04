@@ -11,11 +11,19 @@ interface OrderResult {
   proofUrl: string;
 }
 
+interface ServiceCard {
+  title: string;
+  description: string;
+  buttonLabel: string;
+  url: string;
+}
+
 interface Message {
   role: 'bot' | 'user';
   text: string;
   buttons?: { label: string; action: string }[];
   links?: { label: string; url: string }[];
+  serviceCards?: ServiceCard[];
 }
 
 type Intent =
@@ -40,6 +48,7 @@ type Intent =
   | 'payment'
   | 'services_available'
   | 'location_execution'
+  | 'show_service_cards'
   | 'unknown';
 
 function toDigits(str: string): string {
@@ -149,11 +158,17 @@ function detectIntent(text: string): Intent {
     lower.includes('ادخل المتجر') || lower.includes('وين المتجر') ||
     lower.includes('اطلب الآن') || lower.includes('اطلب الان') ||
     lower.includes('طلب خدمة') ||
-    (lower.includes('ابي') && (lower.includes('اضحية') || lower.includes('أضحية') || lower.includes('عقيقة') || lower.includes('نذر') || lower.includes('كفارة') || lower.includes('ذبيحة'))) ||
-    (lower.includes('أبي') && (lower.includes('أضحية') || lower.includes('عقيقة') || lower.includes('نذر') || lower.includes('كفارة'))) ||
-    lower.includes('اضحية') || lower.includes('أضحية') ||
-    lower.includes('عقيقة') || lower.includes('نذر') || lower.includes('كفارة') || lower.includes('ذبيحة')) {
-    return 'how_to_order';
+    lower.includes('وش خدماتكم') || lower.includes('وش خدماتكم') ||
+    lower.includes('الخدمات') || lower.includes('الخدمة') ||
+    lower.includes('الخدمة من وين') || lower.includes('خدم من وين') ||
+    lower.includes('أبغى خدمة') || lower.includes('أبي خدمة') ||
+    lower.includes('أبغى أضحية') || lower.includes('أبي أضحية') ||
+    lower.includes('أبغى عقيقة') || lower.includes('أبي عقيقة') ||
+    lower.includes('أبغى نذر') || lower.includes('أبي نذر') ||
+    lower.includes('أبغى كفارة') || lower.includes('أبي كفارة') ||
+    lower.includes('ابغى اضحية') || lower.includes('ابي اضحية') ||
+    lower.includes('طلب من المتجر') || lower.includes('اطلب من المتجر')) {
+    return 'show_service_cards';
   }
 
   if (lower.includes('آلية التنفيذ') || lower.includes('الية التنفيذ') ||
@@ -313,21 +328,26 @@ const MAIN_OPTIONS = [
   { label: '🟢 واتساب', action: 'support' },
 ];
 
-const SERVICE_REPLIES: Record<string, { text: string }> = {
+const SERVICE_REPLIES: Record<string, { text: string; buttonLabel: string }> = {
   service_udhiya: {
     text: 'خدمة الأضحية متاحة عبر متجر أضحيتي، ويمكنك الطلب بسهولة مع توثيق بالصوت والصورة بعد التنفيذ.',
+    buttonLabel: 'اطلب الأضحية',
   },
   service_aqiqah: {
     text: 'خدمة العقيقة متاحة عبر متجر أضحيتي، ويمكنك الطلب بسهولة مع توثيق بالصوت والصورة بعد التنفيذ.',
+    buttonLabel: 'اطلب العقيقة',
   },
   service_nadhr: {
     text: 'خدمة النذر متاحة عبر متجر أضحيتي، ويمكنك الطلب بسهولة مع توثيق بالصوت والصورة بعد التنفيذ.',
+    buttonLabel: 'اطلب النذر',
   },
   service_kaffarah: {
     text: 'خدمة الكفارة متاحة عبر متجر أضحيتي، ويمكنك الطلب بسهولة مع توثيق بالصوت والصورة بعد التنفيذ.',
+    buttonLabel: 'اطلب الكفارة',
   },
   store_order: {
-    text: 'يمكنك طلب الخدمة مباشرة من متجر أضحيتي، وسيصلك التوثيق بالصوت والصورة بعد التنفيذ حسب حالة الطلب.',
+    text: 'يمكنك طلب الخدمة مباشرة من متجر أضحيتي، ويمكنك الطلب بسهولة مع توثيق بالصوت والصورة بعد التنفيذ.',
+    buttonLabel: 'اطلب من المتجر',
   },
 };
 
@@ -416,7 +436,7 @@ export default function ChatWidget() {
       role: 'bot',
       text: reply.text,
       buttons: [
-        { label: 'اطلب من المتجر', action: 'shop' },
+        { label: reply.buttonLabel, action: 'shop' },
         { label: '🟢 واتساب', action: 'support' },
       ],
     }]);
@@ -426,6 +446,39 @@ export default function ChatWidget() {
     setMessages(prev => [...prev, { role: 'bot',
       text: 'أقدر أساعدك في متابعة الطلب، مشاهدة التوثيق، أو طلب خدمات أضحيتي من المتجر. اختر ما يناسبك من الخيارات التالية.',
       buttons: MAIN_OPTIONS,
+    }]);
+  };
+
+  const showServiceCards = () => {
+    setMessages(prev => [...prev, {
+      role: 'bot',
+      text: 'اختر الخدمة التي ترغب بطلبها من متجر أضحيتي:',
+      serviceCards: [
+        {
+          title: 'الأضحية',
+          description: 'خدمة الأضحية متاحة عبر متجر أضحيتي، مع توثيق بالصوت والصورة بعد التنفيذ.',
+          buttonLabel: 'اطلب الأضحية',
+          url: 'https://odheyati.com',
+        },
+        {
+          title: 'العقيقة',
+          description: 'خدمة العقيقة متاحة عبر متجر أضحيتي، مع توثيق بالصوت والصورة بعد التنفيذ.',
+          buttonLabel: 'اطلب العقيقة',
+          url: 'https://odheyati.com',
+        },
+        {
+          title: 'النذر',
+          description: 'خدمة النذر متاحة عبر متجر أضحيتي، مع توثيق بالصوت والصورة بعد التنفيذ.',
+          buttonLabel: 'اطلب النذر',
+          url: 'https://odheyati.com',
+        },
+        {
+          title: 'الكفارة',
+          description: 'خدمة الكفارة متاحة عبر متجر أضحيتي، مع توثيق بالصوت والصورة بعد التنفيذ.',
+          buttonLabel: 'اطلب الكفارة',
+          url: 'https://odheyati.com',
+        },
+      ],
     }]);
   };
 
@@ -645,8 +698,7 @@ if (order.proofStatus === 'CANCELLED') {
     if (action === 'track' || action === 'view_proof') {
       showTrackingPrompt();
     } else if (action === 'store') {
-      window.open('https://odheyati.com', '_blank');
-      setMessages(prev => [...prev, { role: 'bot', text: 'تم توجيهك إلى متجر أضحيتي 🌿', buttons: MAIN_OPTIONS }]);
+      showServiceCards();
     } else if (action === 'support') {
       window.open('https://api.whatsapp.com/send?phone=966562365161&text=', '_blank');
       setMessages(prev => [...prev, { role: 'bot', text: 'تم فتح محادثة واتساب معنا! 🌿', buttons: MAIN_OPTIONS }]);
@@ -721,7 +773,6 @@ if (proofStatus === 'CANCELLED') {
         case 'service_aqiqah':
         case 'service_nadhr':
         case 'service_kaffarah':
-        case 'store_order':
           showServiceResponse(intent);
           break;
         case 'support':
@@ -740,6 +791,9 @@ if (proofStatus === 'CANCELLED') {
         case 'services_available':
         case 'location_execution':
           showFAQResponse(intent);
+          break;
+        case 'show_service_cards':
+          showServiceCards();
           break;
         case 'unknown':
           showUnknown();
@@ -878,6 +932,17 @@ if (proofStatus === 'CANCELLED') {
                         {msg.links.map((lnk, j) => (
                           <a key={j} href={lnk.url} target="_blank" rel="noopener noreferrer" className="inline-block text-xs px-3 py-1.5 rounded-full font-medium text-white transition-colors" style={{ backgroundColor: '#917e69' }}>
                             {lnk.label}
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                    {msg.serviceCards && (
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        {msg.serviceCards.map((card, j) => (
+                          <a key={j} href={card.url} target="_blank" rel="noopener noreferrer" className="block rounded-lg p-3 text-white transition-colors" style={{ backgroundColor: '#dca47c', textDecoration: 'none' }}>
+                            <div className="text-sm font-semibold mb-1" style={{ color: '#973131' }}>{card.title}</div>
+                            <div className="text-xs mb-2 leading-relaxed" style={{ color: '#555' }}>{card.description}</div>
+                            <div className="text-xs font-medium text-center py-1 rounded-full text-white" style={{ backgroundColor: '#973131' }}>{card.buttonLabel}</div>
                           </a>
                         ))}
                       </div>
