@@ -120,9 +120,10 @@ export async function POST(request: Request) {
       const statusCol = headers.findIndex(h => h.includes('حالة') || h.includes('status'));
       const nameCol = headers.findIndex(h => h.includes('اسم') || h.includes('name'));
       const mobileCol = headers.findIndex(h => h.includes('جوال') || h.includes('mobile') || h.includes('phone'));
+      const emailCol = headers.findIndex(h => h.includes('البريد الإلكتروني') || h.includes('customerEmail') || h.includes('email'));
       const amountCol = headers.findIndex(h => h.includes('مبلغ') || h.includes('amount'));
 
-      if (orderCol === -1 || nameCol === -1 || mobileCol === -1) {
+      if (orderCol === -1 || nameCol === -1) {
         return NextResponse.json({ error: 'Missing required columns' }, { status: 400 });
       }
 
@@ -134,6 +135,7 @@ export async function POST(request: Request) {
         const orderNumber = String(row[orderCol] || '').trim();
         const customerName = String(row[nameCol] || '').trim();
         const customerMobile = String(row[mobileCol] || '').trim();
+        const customerEmail = emailCol !== -1 ? String(row[emailCol] || '').trim().toLowerCase() : '';
         const sallaStatus = statusCol !== -1 ? String(row[statusCol] || '').trim() : '';
         const amount = amountCol !== -1 ? String(row[amountCol] || '').trim() : '';
 
@@ -163,98 +165,114 @@ export async function POST(request: Request) {
           continue;
         }
 
-        if (!customerMobile || customerMobile.length < 7) {
+        if (!customerMobile && !customerEmail) {
           report.rows.push({
             row: rowNum,
             orderNumber,
             customerName,
             customerMobile: customerMobile || '-',
             status: 'failed',
-            message: 'رقم الجوال غير صالح',
+            message: 'يجب توفير رقم الجوال أو البريد الإلكتروني',
           });
           report.summary.failed++;
           continue;
         }
 
-        const { fullNumber, countryCode } = normalizeMobile(customerMobile);
-        const mobileLast4 = fullNumber.slice(-4);
-        const parsedAmount = parseFloat(amount.replace(/[^\d.]/g, '')) || null;
-
-        const existingOrder = await prisma.order.findUnique({
-          where: { orderNumber },
-          include: { items: true, files: true },
-        });
-
-        if (existingOrder) {
-          const hasExistingFiles = existingOrder.files.length > 0;
-          const newProofStatus = mapSallaStatusToProofStatus(sallaStatus, hasExistingFiles);
-
-          const updateData: any = {
-            customerName,
-            customerMobile: fullNumber,
-            customerMobileLast4: mobileLast4,
-            sallaStatus: sallaStatus || existingOrder.sallaStatus,
-          };
-
-          if (newProofStatus && newProofStatus !== existingOrder.proofStatus) {
-            updateData.proofStatus = newProofStatus;
+        let fullNumber = '';
+          let mobileLast4 = '';
+          if (customerMobile) {
+            const normalized = normalizeMobile(customerMobile);
+            fullNumber = normalized.fullNumber;
+            mobileLast4 = fullNumber.slice(-4);
           }
+          const parsedAmount = parseFloat(amount.replace(/[^\d.]/g, '')) || null;
 
-          await prisma.order.update({
+          const existingOrder = await prisma.order.findUnique({
             where: { orderNumber },
-            data: updateData,
+            include: { items: true, files: true },
           });
 
-          if (parsedAmount && existingOrder.items.length === 0) {
-            await prisma.orderItem.create({
-              data: {
-                orderId: existingOrder.id,
-                productName: 'طلب مستورد من سلة',
-                quantity: 1,
-                price: parsedAmount,
-              },
+          if (existingOrder) {
+            const hasExistingFiles = existingOrder.files.length > 0;
+            const newProofStatus = mapSallaStatusToProofStatus(sallaStatus, hasExistingFiles);
+
+            const updateData: any = {
+              customerName,
+              sallaStatus: sallaStatus || existingOrder.sallaStatus,
+            };
+
+            if (fullNumber) {
+              updateData.customerMobile = fullNumber;
+              updateData.customerMobileLast4 = mobileLast4;
+            }
+            if (customerEmail) {
+              updateData.customerEmail = customerEmail;
+            }
+
+            if (newProofStatus && newProofStatus !== existingOrder.proofStatus) {
+              updateData.proofStatus = newProofStatus;
+            }
+
+            await prisma.order.update({
+              where: { orderNumber },
+              data: updateData,
             });
-          }
 
-          report.rows.push({
-            row: rowNum,
-            orderNumber,
-            customerName,
-            customerMobile: fullNumber,
-            status: 'updated',
-            message: hasExistingFiles ? 'تم التحديث (ملفات التوثيق محفوظة)' : 'تم التحديث',
-          });
-          report.summary.updated++;
+            if (parsedAmount && existingOrder.items.length === 0) {
+              await prisma.orderItem.create({
+                data: {
+                  orderId: existingOrder.id,
+                  productName: 'طلب مستورد من سلة',
+                  quantity: 1,
+                  price: parsedAmount,
+                },
+              });
+            }
 
-          if (existingMobiles.has(fullNumber)) {
             report.rows.push({
               row: rowNum,
               orderNumber,
               customerName,
-              customerMobile: fullNumber,
-              status: 'warning',
-              message: 'يوجد طلب سابق بنفس رقم الجوال',
+              customerMobile: fullNumber || '-',
+              status: 'updated',
+              message: hasExistingFiles ? 'تم التحديث (ملفات التوثيق محفوظة)' : 'تم التحديث',
             });
-            report.summary.warnings++;
-          }
-          existingMobiles.add(fullNumber);
-        } else {
-          const hasOtherOrdersWithMobile = await prisma.order.findFirst({
-            where: { customerMobile: fullNumber },
-          });
+            report.summary.updated++;
 
-          const newOrder = await prisma.order.create({
-            data: {
-              orderNumber,
-              customerName,
-              customerMobile: fullNumber,
-              customerMobileLast4: mobileLast4,
-              customerEmail: null,
-              sallaStatus,
-              proofStatus: mapSallaStatusToProofStatus(sallaStatus, false) as any || 'PENDING',
-              proofToken: `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`,
-            },
-          });
+            if (fullNumber && existingMobiles.has(fullNumber)) {
+              report.rows.push({
+                row: rowNum,
+                orderNumber,
+                customerName,
+                customerMobile: fullNumber,
+                status: 'warning',
+                message: 'يوجد طلب سابق بنفس رقم الجوال',
+              });
+              report.summary.warnings++;
+            }
+            if (fullNumber) existingMobiles.add(fullNumber);
+          } else {
+            const hasOtherOrdersWithContact = await prisma.order.findFirst({
+              where: {
+                OR: [
+                  ...(fullNumber ? [{ customerMobile: fullNumber }] : []),
+                  ...(customerEmail ? [{ customerEmail: customerEmail }] : []),
+                ]
+              }
+            });
+
+            const newOrder = await prisma.order.create({
+              data: {
+                orderNumber,
+                customerName,
+                customerMobile: fullNumber || '',
+                customerMobileLast4: mobileLast4 || '',
+                customerEmail: customerEmail || null,
+                sallaStatus,
+                proofStatus: mapSallaStatusToProofStatus(sallaStatus, false) as any || 'PENDING',
+                proofToken: `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`,
+              },
+            });
 
           if (parsedAmount) {
             await prisma.orderItem.create({
@@ -277,18 +295,18 @@ export async function POST(request: Request) {
           });
           report.summary.added++;
 
-          if (hasOtherOrdersWithMobile) {
+          if (hasOtherOrdersWithContact) {
             report.rows.push({
               row: rowNum,
               orderNumber,
               customerName,
-              customerMobile: fullNumber,
+              customerMobile: fullNumber || '-',
               status: 'warning',
-              message: 'يوجد طلب سابق لنفس رقم الجوال',
+              message: 'يوجد طلب سابق بنفس رقم الجوال أو الإيميل',
             });
             report.summary.warnings++;
           }
-          existingMobiles.add(fullNumber);
+          if (fullNumber) existingMobiles.add(fullNumber);
         }
       }
     } else if (platform === 'SHOPIFY') {
