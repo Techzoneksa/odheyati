@@ -66,13 +66,10 @@ export async function POST(request: Request) {
             contains: email.trim().toLowerCase(),
             mode: 'insensitive',
           },
-          proofStatus: {
-            not: 'CANCELLED',
-          },
         },
         select: {
-          id: true,
           orderNumber: true,
+          customerName: true,
           proofStatus: true,
           proofToken: true,
           createdAt: true,
@@ -88,11 +85,10 @@ export async function POST(request: Request) {
       return NextResponse.json({
         found: true,
         orders: orders.map(o => ({
-          id: o.id,
-          orderNumber: o.orderNumber,
-          proofStatus: o.proofStatus,
-          createdAt: o.createdAt.toISOString(),
           proofToken: o.proofToken,
+          orderNumber: o.orderNumber,
+          customerName: o.customerName,
+          proofStatus: o.proofStatus,
         }))
       });
     }
@@ -112,9 +108,6 @@ export async function POST(request: Request) {
     const orders = await prisma.order.findMany({
       where: {
         customerMobile: normalizedMobile,
-        proofStatus: {
-          not: 'CANCELLED',
-        },
       },
       select: {
         id: true,
