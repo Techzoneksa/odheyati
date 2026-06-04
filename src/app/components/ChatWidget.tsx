@@ -74,7 +74,7 @@ export default function ChatWidget() {
             const order = data.orders[0];
             let responseText = `تم العثور على طلبك ✅\n\nرقم الطلب: ${order.orderNumber}\nحالة التوثيق: ${order.statusText}`;
             const links: { label: string; url: string }[] = [];
-            if (order.hasMedia || order.proofStatus === 'READY' || order.proofStatus === 'DELIVERED' || order.proofStatus === 'VIEWED' || order.proofStatus === 'MEDIA_UPLOADED') {
+            if (order.hasMedia || order.proofStatus === 'READY' || order.proofStatus === 'VIEWED' || order.proofStatus === 'MEDIA_UPLOADED') {
               responseText += '\n\nتوثيق طلبكم جاهز للمشاهدة.';
               links.push({ label: 'مشاهدة التوثيق', url: order.proofUrl });
             } else {
@@ -129,9 +129,9 @@ export default function ChatWidget() {
         { role: 'user', text: 'الاستفسار عن الأضحية' },
         {
           role: 'bot',
-          text: 'الأضحية هي ما يُذبح في أيام النحر تقرّبًا إلى الله، ويتم تنفيذها خلال الوقت الشرعي المخصص لها. في أضحيتي نوفّر خدمة الطلب والتوثيق حسب حالة الطلب.',
+          text: 'الأضحية تُذبح في أيام النحر تقرّبًا إلى الله، ويمكنك طلبها من متجر أضحيتي ومتابعة التوثيق بعد التنفيذ.',
           buttons: [
-            { label: 'تتبع الطلب', action: 'track' },
+            { label: 'طلب الخدمة من المتجر', action: 'shop' },
             { label: 'التواصل مع الدعم', action: 'support' },
           ],
         },
@@ -142,9 +142,9 @@ export default function ChatWidget() {
         { role: 'user', text: 'الاستفسار عن العقيقة' },
         {
           role: 'bot',
-          text: 'العقيقة ذبيحة تُذبح شكرًا لله عن المولود، ويمكنك طلبها ومتابعة تنفيذها عبر التوثيق عند اكتماله.',
+          text: 'العقيقة ذبيحة تُذبح شكرًا لله عن المولود، ويمكنك طلبها من متجر أضحيتي ومتابعة التوثيق بعد اكتمال التنفيذ.',
           buttons: [
-            { label: 'تتبع الطلب', action: 'track' },
+            { label: 'طلب الخدمة من المتجر', action: 'shop' },
             { label: 'التواصل مع الدعم', action: 'support' },
           ],
         },
@@ -155,9 +155,9 @@ export default function ChatWidget() {
         { role: 'user', text: 'الاستفسار عن النذر' },
         {
           role: 'bot',
-          text: 'النذر يكون حسب ما أوجبه الشخص على نفسه، ويمكن تنفيذ الذبيحة ومتابعة التوثيق بعد اكتمال الطلب.',
+          text: 'النذر يكون بحسب ما أوجبه الشخص على نفسه، ويمكنك طلب تنفيذ الذبيحة من متجر أضحيتي ومتابعة التوثيق بعد اكتمال التنفيذ.',
           buttons: [
-            { label: 'تتبع الطلب', action: 'track' },
+            { label: 'طلب الخدمة من المتجر', action: 'shop' },
             { label: 'التواصل مع الدعم', action: 'support' },
           ],
         },
@@ -168,9 +168,9 @@ export default function ChatWidget() {
         { role: 'user', text: 'الاستفسار عن الكفارة' },
         {
           role: 'bot',
-          text: 'الكفارة تختلف حسب سببها وحكمها، ويمكننا مساعدتك في تنفيذ الطلب حسب الخدمة المتاحة. للتأكد من الحكم الشرعي التفصيلي، يُفضّل الرجوع لأهل العلم، ويسعدنا مساعدتك في تنفيذ الطلب بعد تحديد نوع الخدمة.',
+          text: 'الكفارة تختلف حسب سببها وحكمها، وللتأكد من الحكم الشرعي التفصيلي يُفضّل الرجوع لأهل العلم. ويمكنك طلب الخدمة المتاحة من متجر أضحيتي.',
           buttons: [
-            { label: 'تتبع الطلب', action: 'track' },
+            { label: 'طلب الخدمة من المتجر', action: 'shop' },
             { label: 'التواصل مع الدعم', action: 'support' },
           ],
         },
@@ -178,6 +178,9 @@ export default function ChatWidget() {
     } else if (action === 'support') {
       window.open('https://api.whatsapp.com/send?phone=966562365161&text=', '_blank');
       setMessages(prev => [...prev, { role: 'bot', text: 'تم فتح محادثة واتساب معنا!' }]);
+    } else if (action === 'shop') {
+      window.open('https://odheyati.com', '_blank');
+      setMessages(prev => [...prev, { role: 'bot', text: 'تم توجيهك إلى متجر أضحيتي 🌿' }]);
     } else if (action === 'retry') {
       setMessages(prev => [WELCOME_MESSAGE]);
     } else if (action.startsWith('select_order:')) {
@@ -189,7 +192,7 @@ export default function ChatWidget() {
         ...prev,
         {
           role: 'bot',
-          text: hasMedia || proofStatus === 'READY' || proofStatus === 'DELIVERED' || proofStatus === 'VIEWED' || proofStatus === 'MEDIA_UPLOADED'
+          text: hasMedia || proofStatus === 'READY' || proofStatus === 'VIEWED' || proofStatus === 'MEDIA_UPLOADED'
             ? 'توثيق هذا الطلب جاهز للمشاهدة.'
             : 'تم العثور على طلبكم، وجاري تجهيز التوثيق.',
           links: [{ label: 'مشاهدة التوثيق', url: proofUrl }],

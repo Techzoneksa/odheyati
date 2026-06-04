@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSignedDownloadUrl } from '@/lib/r2';
+import { getSession } from '@/lib/auth';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -51,6 +52,11 @@ export async function GET(request: Request, { params }: Props) {
 }
 
 export async function DELETE(request: Request, { params }: Props) {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const { id } = await params;
 
   const file = await prisma.proofFile.findUnique({

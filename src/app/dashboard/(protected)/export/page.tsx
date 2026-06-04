@@ -100,7 +100,6 @@ export default function ExportPage() {
                 <option value="SLAUGHTERED">تم الذبح</option>
                 <option value="MEDIA_UPLOADED">تم رفع الملفات</option>
                 <option value="READY">التوثيق جاهز</option>
-                <option value="SENT">تم الإرسال</option>
                 <option value="VIEWED">تمت المشاهدة</option>
                 <option value="CANCELLED">ملغي</option>
                 <option value="with_files">فيها ملفات</option>

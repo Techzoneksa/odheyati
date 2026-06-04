@@ -14,10 +14,16 @@ export async function POST(request: Request) {
   const signature = request.headers.get('x-salla-signature');
   const webhookSecret = process.env.SALLA_WEBHOOK_SECRET;
 
-  if (webhookSecret && signature) {
-    if (!verifySignature(rawBody, signature, webhookSecret)) {
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
-    }
+  if (!webhookSecret) {
+    return NextResponse.json({ error: 'Webhook not configured' }, { status: 503 });
+  }
+
+  if (!signature) {
+    return NextResponse.json({ error: 'Missing signature' }, { status: 401 });
+  }
+
+  if (!verifySignature(rawBody, signature, webhookSecret)) {
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
   }
 
   let payload: unknown;
@@ -71,7 +77,7 @@ export async function POST(request: Request) {
     'عميل';
 
   const mobile = customerData.mobile || customerData.phone || '';
-  const mobileLast4 = mobile.slice(-4);
+  const mobileLast4 = mobile && mobile.length >= 4 ? mobile.slice(-4) : '0000';
 
   try {
     await prisma.order.upsert({

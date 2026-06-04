@@ -5,52 +5,13 @@ const rateLimit = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT = 10;
 const RATE_WINDOW = 60 * 1000;
 
-function normalizeMobile(raw: string): { normalized: string; variations: string[] } {
-  const digits = raw.replace(/[\s\-()+\[\]]/g, '');
-  const arabicDigits = '٠١٢٣٤٥٦٧٨٩';
-  let normalized = digits;
-  for (let i = 0; i < arabicDigits.length; i++) {
-    normalized = normalized.split(arabicDigits[i]).join(String(i));
+function toDigits(str: string): string {
+  const arabic = '٠١٢٣٤٥٦٧٨٩';
+  let result = str;
+  for (let i = 0; i < arabic.length; i++) {
+    result = result.split(arabic[i]).join(String(i));
   }
-
-  const variations = new Set<string>();
-
-  if (normalized.startsWith('00')) {
-    const without00 = normalized.substring(2);
-    variations.add(without00);
-    if (without00.length >= 9) {
-      variations.add(without00.slice(-9));
-    }
-  } else if (normalized.startsWith('+')) {
-    const withoutPlus = normalized.substring(1);
-    variations.add(withoutPlus);
-    if (withoutPlus.length >= 9) {
-      variations.add(withoutPlus.slice(-9));
-    }
-  } else if (normalized.startsWith('0') && normalized.length > 9) {
-    const without0 = normalized.substring(1);
-    variations.add(without0);
-    if (without0.length >= 9) {
-      variations.add(without0.slice(-9));
-    }
-    if (without0.startsWith('966') || without0.startsWith('971') || without0.startsWith('965') || without0.startsWith('974') || without0.startsWith('973') || without0.startsWith('968')) {
-    } else {
-      variations.add('966' + without0);
-    }
-  } else {
-    variations.add(normalized);
-    if (normalized.length >= 9) {
-      variations.add(normalized.slice(-9));
-    }
-    if (normalized.length >= 7) {
-      variations.add(normalized.slice(-7));
-    }
-  }
-
-  return {
-    normalized,
-    variations: Array.from(variations).filter(v => v.length >= 7),
-  };
+  return result.replace(/[\s\-()+[\]]/g, '');
 }
 
 function getStatusText(status: string): string {
@@ -64,11 +25,6 @@ function getStatusText(status: string): string {
     CANCELLED: 'هذا الطلب ملغي. للتفاصيل يرجى التواصل معنا.',
   };
   return map[status] || status;
-}
-
-function maskForDebug(str: string): string {
-  if (str.length <= 4) return '****';
-  return str.slice(0, 2) + '****' + str.slice(-2);
 }
 
 export async function POST(request: Request) {
@@ -93,24 +49,32 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const query = (body.query || '').toString().trim();
+    const rawQuery = (body.query || '').toString().trim();
 
-    if (!query) {
+    if (!rawQuery) {
       return NextResponse.json({ error: 'الرجاء إدخال رقم الطلب أو الجوال أو البريد الإلكتروني' }, { status: 400 });
     }
 
-    console.log('CHAT_LOOKUP:', {
-      SEARCH_TYPE: query.includes('@') ? 'email' : (/\d{7,}/.test(query) ? 'numeric' : 'text'),
-      HAS_QUERY: !!query,
-      QUERY_LENGTH: query.length,
-      QUERY_MASKED: maskForDebug(query),
+    const totalOrders = await prisma.order.count();
+    console.log('CHAT_LOOKUP_DB_COUNT:', totalOrders);
+
+    const isEmailQuery = rawQuery.includes('@') && rawQuery.includes('.');
+    const digitsOnly = toDigits(rawQuery);
+    const isNumericQuery = /^\d{7,}$/.test(digitsOnly);
+
+    console.log('CHAT_LOOKUP_REQUEST:', {
+      RAW_QUERY_LEN: rawQuery.length,
+      IS_EMAIL: isEmailQuery,
+      IS_NUMERIC: isNumericQuery,
+      DIGITS_ONLY_LEN: digitsOnly.length,
     });
 
     let orders;
 
-    if (query.includes('@') && query.includes('.')) {
-      const email = query.toLowerCase().trim();
-      console.log('CHAT_LOOKUP: searching email');
+    if (isEmailQuery) {
+      const email = rawQuery.toLowerCase().trim();
+      console.log('CHAT_LOOKUP_MODE: email search');
+
       orders = await prisma.order.findMany({
         where: {
           customerEmail: {
@@ -121,6 +85,8 @@ export async function POST(request: Request) {
         select: {
           orderNumber: true,
           customerName: true,
+          customerMobile: true,
+          customerEmail: true,
           proofStatus: true,
           proofToken: true,
           createdAt: true,
@@ -129,28 +95,23 @@ export async function POST(request: Request) {
         orderBy: { createdAt: 'desc' },
         take: 10,
       });
-      console.log('CHAT_LOOKUP: email result count', orders.length);
-    } else if (/^\d[\d\s\-+()\[\]]*$/.test(query.replace(/\s/g, ''))) {
-      const { normalized, variations } = normalizeMobile(query);
-      console.log('CHAT_LOOKUP: mobile search', {
-        ORIGINAL_MASKED: maskForDebug(query.replace(/\s/g, '')),
-        NORMALIZED_MASKED: maskForDebug(normalized),
-        VARIATIONS_COUNT: variations.length,
-        FIRST_VAR_MASKED: variations[0] ? maskForDebug(variations[0]) : 'none',
-      });
+      console.log('CHAT_LOOKUP_EMAIL_RESULT:', orders.length);
+    } else if (isNumericQuery) {
+      console.log('CHAT_LOOKUP_MODE: numeric search — checking orderNumber + mobile in single query');
 
-      const mobileConditions = variations.map(v => ({
-        OR: [
-          { customerMobile: { contains: v } },
-          { customerMobileLast4: { contains: v.slice(-4) } },
-        ],
-      }));
-
-      orders = await prisma.order.findMany({
-        where: { OR: mobileConditions },
+      const exactByOrder = await prisma.order.findMany({
+        where: {
+          OR: [
+            { orderNumber: { equals: digitsOnly } },
+            { orderNumber: { equals: rawQuery } },
+            { orderNumber: { equals: rawQuery.toUpperCase() } },
+          ],
+        },
         select: {
           orderNumber: true,
           customerName: true,
+          customerMobile: true,
+          customerEmail: true,
           proofStatus: true,
           proofToken: true,
           createdAt: true,
@@ -159,20 +120,61 @@ export async function POST(request: Request) {
         orderBy: { createdAt: 'desc' },
         take: 10,
       });
-      console.log('CHAT_LOOKUP: mobile result count', orders.length);
 
-      if (orders.length === 0) {
-        console.log('CHAT_LOOKUP: falling back to orderNumber contains');
+      if (exactByOrder.length > 0) {
+        console.log('CHAT_LOOKUP_EXACT_ORDER_FOUND:', exactByOrder[0].orderNumber);
+        orders = exactByOrder;
+      } else {
+        console.log('CHAT_LOOKUP_MODE: numeric fallback to contains search across orderNumber + mobile');
+
+        const mobileVariations: string[] = [];
+        let clean = digitsOnly;
+
+        if (clean.startsWith('00')) {
+          clean = clean.substring(2);
+        } else if (clean.startsWith('+')) {
+          clean = clean.substring(1);
+        }
+
+        mobileVariations.push(clean);
+        if (clean.startsWith('0') && clean.length > 9) {
+          mobileVariations.push(clean.substring(1));
+        }
+        if (clean.length >= 9) {
+          mobileVariations.push(clean.slice(-9));
+        }
+        if (clean.length >= 7) {
+          mobileVariations.push(clean.slice(-7));
+        }
+        if (clean.startsWith('966') && clean.length > 9) {
+          mobileVariations.push(clean.substring(3));
+        }
+
+        const variationsDeduped = Array.from(new Set(mobileVariations));
+        console.log('CHAT_LOOKUP_MOBILE_VARIATIONS:', variationsDeduped);
+
+        const mobileOrConditions = variationsDeduped.flatMap(v => [
+          { customerMobile: { contains: v } },
+          { customerMobileLast4: { contains: v.slice(-4) } },
+        ]);
+
+        const orderOrConditions = [
+          { orderNumber: { contains: digitsOnly } },
+          { orderNumber: { contains: rawQuery } },
+        ];
+
         orders = await prisma.order.findMany({
           where: {
-            orderNumber: {
-              contains: normalized,
-              mode: 'insensitive',
-            },
+            OR: [
+              ...orderOrConditions,
+              ...mobileOrConditions,
+            ],
           },
           select: {
             orderNumber: true,
             customerName: true,
+            customerMobile: true,
+            customerEmail: true,
             proofStatus: true,
             proofToken: true,
             createdAt: true,
@@ -181,20 +183,23 @@ export async function POST(request: Request) {
           orderBy: { createdAt: 'desc' },
           take: 10,
         });
-        console.log('CHAT_LOOKUP: orderNumber fallback result count', orders.length);
+        console.log('CHAT_LOOKUP_NUMERIC_RESULT:', orders.length, orders.map(o => o.orderNumber));
       }
     } else {
-      console.log('CHAT_LOOKUP: fallback to orderNumber text search');
+      console.log('CHAT_LOOKUP_MODE: text search on orderNumber + customerName');
+
       orders = await prisma.order.findMany({
         where: {
-          orderNumber: {
-            contains: query,
-            mode: 'insensitive',
-          },
+          OR: [
+            { orderNumber: { contains: rawQuery, mode: 'insensitive' } },
+            { customerName: { contains: rawQuery, mode: 'insensitive' } },
+          ],
         },
         select: {
           orderNumber: true,
           customerName: true,
+          customerMobile: true,
+          customerEmail: true,
           proofStatus: true,
           proofToken: true,
           createdAt: true,
@@ -203,11 +208,11 @@ export async function POST(request: Request) {
         orderBy: { createdAt: 'desc' },
         take: 10,
       });
-      console.log('CHAT_LOOKUP: text search result count', orders.length);
+      console.log('CHAT_LOOKUP_TEXT_RESULT:', orders.length);
     }
 
     if (orders.length === 0) {
-      console.log('CHAT_LOOKUP: no results found, returning not found');
+      console.log('CHAT_LOOKUP_NOT_FOUND');
       return NextResponse.json({
         found: false,
         message: 'لم أجد طلبًا مرتبطًا بهذه البيانات. تأكد من رقم الطلب أو الجوال أو البريد الإلكتروني وحاول مرة أخرى.',
@@ -223,9 +228,7 @@ export async function POST(request: Request) {
       proofUrl: `/proof/${o.proofToken}`,
     }));
 
-    console.log('CHAT_LOOKUP: found', orders.length, 'order(s)', {
-      FIRST_ORDER_NUMBER: orders[0]?.orderNumber,
-    });
+    console.log('CHAT_LOOKUP_FOUND:', orders.length, result.map(r => r.orderNumber));
 
     return NextResponse.json({ found: true, orders: result });
 

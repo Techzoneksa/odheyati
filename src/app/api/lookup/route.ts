@@ -79,7 +79,7 @@ export async function POST(request: Request) {
       });
 
       if (orders.length === 0) {
-        return NextResponse.json({ error: 'لم نجد توثيقًا' });
+        return NextResponse.json({ error: 'لم نجد توثيقًا' }, { status: 404 });
       }
 
       return NextResponse.json({

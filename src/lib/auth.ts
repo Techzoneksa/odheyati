@@ -1,7 +1,6 @@
 import { cookies } from 'next/headers';
 import { prisma } from './prisma';
 import bcrypt from 'bcryptjs';
-import { prisma as prismaClient } from '@/lib/prisma';
 
 export interface SessionUser {
   id: string;
@@ -49,7 +48,7 @@ export async function destroySession(): Promise<void> {
 }
 
 export async function authenticate(email: string, password: string): Promise<SessionUser | null> {
-  const user = await prismaClient.user.findUnique({
+  const user = await prisma.user.findUnique({
     where: { email },
   });
 
