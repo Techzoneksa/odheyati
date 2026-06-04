@@ -123,8 +123,18 @@ export async function POST(request: Request) {
       const emailCol = headers.findIndex(h => h.includes('البريد الإلكتروني') || h.includes('customerEmail') || h.includes('email'));
       const amountCol = headers.findIndex(h => h.includes('مبلغ') || h.includes('amount'));
 
-      if (orderCol === -1 || nameCol === -1) {
-        return NextResponse.json({ error: 'Missing required columns' }, { status: 400 });
+      const requiredColumns = ['رقم الطلب', 'اسم العميل'];
+      const missing = requiredColumns.filter(col => {
+        if (col === 'رقم الطلب') return orderCol === -1;
+        if (col === 'اسم العميل') return nameCol === -1;
+        return false;
+      });
+
+      if (missing.length > 0) {
+        return NextResponse.json(
+          { error: 'الأعمدة المطلوبة: رقم الطلب، اسم العميل (ورقم الجوال أو البريد الإلكتروني لكل صف)' },
+          { status: 400 }
+        );
       }
 
       const existingMobiles = new Set<string>();
