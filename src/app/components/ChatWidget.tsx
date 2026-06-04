@@ -49,6 +49,12 @@ type Intent =
   | 'services_available'
   | 'location_execution'
   | 'show_service_cards'
+  | 'livestock_types'
+  | 'goat_sheep_question'
+  | 'distribution_country'
+  | 'delivery_inside_saudi'
+  | 'execution_location'
+  | 'meat_delivery_or_receiving'
   | 'unknown';
 
 function toDigits(str: string): string {
@@ -290,6 +296,91 @@ function detectIntent(text: string): Intent {
     lower.includes('توزيع وين') || lower.includes('وين التوزيع') ||
     lower.includes('خارج المملكة') || lower.includes('داخل المملكة')) {
     return 'location_execution';
+  }
+
+  if (lower.includes('انواع المواشي') || lower.includes('أنواع المواشي') ||
+    lower.includes('وش المواشي') || lower.includes('ايش المواشي') || lower.includes('إيش المواشي') ||
+    lower.includes('نوع الذبيحة') || lower.includes('انواع الذبائح') || lower.includes('أنواع الذبائح') ||
+    lower.includes('وش الذبائح') || lower.includes('ايش الذبائح') || lower.includes('إيش الذبائح') ||
+    lower.includes('نوع الاضحية') || lower.includes('نوع الأضحية') ||
+    lower.includes('وش المتوفر') || lower.includes('ايش المتوفر') || lower.includes('إيش المتوفر') ||
+    lower.includes('المتوفر من المواشي') || lower.includes('المتوفر من الذبائح') ||
+    lower.includes('تيس') || lower.includes('تيوس') || lower.includes('تويس') || lower.includes('التويس') ||
+    lower.includes('خروف') || lower.includes('خرفان') ||
+    lower.includes('غنم') || lower.includes('ماعز') ||
+    lower.includes('سواكني') || lower.includes('بربري') || lower.includes('حري') || lower.includes('نعيمي') ||
+    lower.includes('ذبحة') || lower.includes('ذبائح') ||
+    lower.includes('الأغنام') || lower.includes('الاغنام') ||
+    lower.includes('عندكم تيس') || lower.includes('عندكم تيوس') ||
+    lower.includes('عندكم خروف') || lower.includes('عندكم خرفان') ||
+    lower.includes('عندكم غنم') || lower.includes('عندكم ماعز')) {
+    return 'livestock_types';
+  }
+
+  if (lower.includes('هل عندكم تيس') ||
+    lower.includes('ابي تيس') || lower.includes('أبي تيس') || lower.includes('ابغى تيس') || lower.includes('أبغى تيس') || lower.includes('اريد تيس') || lower.includes('أريد تيس') ||
+    lower.includes('تيس صومالي') || lower.includes('تيس افريقي') || lower.includes('تيس أفريقي') ||
+    lower.includes('هل عندكم خروف') ||
+    lower.includes('ابي خروف') || lower.includes('أبي خروف') || lower.includes('ابغى خروف') || lower.includes('أبغى خروف') ||
+    lower.includes('ابي غنم') || lower.includes('أبي غنم') ||
+    lower.includes('ابي ماعز') || lower.includes('أبي ماعز')) {
+    return 'goat_sheep_question';
+  }
+
+  if (lower.includes('وين التوزيع') || lower.includes('فين التوزيع') ||
+    lower.includes('أين التوزيع') || lower.includes('اين التوزيع') ||
+    lower.includes('بلد التوزيع') || lower.includes('دولة التوزيع') ||
+    lower.includes('في أي بلد') || lower.includes('في اي بلد') ||
+    lower.includes('التوزيع فين') || lower.includes('التوزيع وين') ||
+    lower.includes('توزعون فين') || lower.includes('توزعون وين') ||
+    lower.includes('وين توزعون') || lower.includes('فين توزعون') ||
+    lower.includes('أين توزعون') || lower.includes('اين توزعون') ||
+    lower.includes('مكان التوزيع') || lower.includes('موقع التوزيع') ||
+    lower.includes('لمن توزعون') || lower.includes('على مين توزعون') ||
+    lower.includes('توزيع افريقيا') || lower.includes('توزيع أفريقيا') ||
+    lower.includes('توزعون في افريقيا') || lower.includes('توزعون في أفريقيا')) {
+    return 'distribution_country';
+  }
+
+  if (lower.includes('توصيل داخل المملكة') || lower.includes('توصيل داخل السعودية') ||
+    lower.includes('هل يوجد توصيل') || lower.includes('هل عندكم توصيل') ||
+    lower.includes('توصلون') || lower.includes('توصلون داخل السعودية') || lower.includes('توصلون داخل المملكة') ||
+    lower.includes('توصيل للبيت') || lower.includes('توصيل للمنزل') ||
+    lower.includes('توصلون اللحم') || lower.includes('توصلون الذبيحة') ||
+    lower.includes('توصيل جدة') || lower.includes('توصيل مكة') ||
+    lower.includes('توصيل الرياض') || lower.includes('توصيل المدينة') ||
+    lower.includes('داخل جدة') || lower.includes('داخل مكة') || lower.includes('داخل الرياض') ||
+    lower.includes('الشحن داخل السعودية') ||
+    lower.includes('تغليف اللحم') || lower.includes('شحن اللحم') ||
+    lower.includes('استلام من الفرع') || lower.includes('اخذ من الفرع') || lower.includes('أخذ من الفرع')) {
+    return 'delivery_inside_saudi';
+  }
+
+  if (lower.includes('التنفيذ داخل السعودية') || lower.includes('التنفيذ خارج السعودية') ||
+    lower.includes('وين التنفيذ') || lower.includes('فين التنفيذ') ||
+    lower.includes('أين التنفيذ') || lower.includes('اين التنفيذ') ||
+    lower.includes('مكان التنفيذ') || lower.includes('مكان الذبح') ||
+    lower.includes('وين الذبح') || lower.includes('فين الذبح') ||
+    lower.includes('أين الذبح') || lower.includes('اين الذبح') ||
+    lower.includes('تذبحون وين') || lower.includes('تذبحون فين') ||
+    lower.includes('تذبحون داخل السعودية') || lower.includes('تذبحون خارج السعودية') ||
+    lower.includes('هل الذبح في السعودية') || lower.includes('هل الذبح خارج السعودية') ||
+    lower.includes('بلد التنفيذ') || lower.includes('دولة التنفيذ')) {
+    return 'execution_location';
+  }
+
+  if (lower.includes('استلام اللحم') || lower.includes('استلم اللحم') ||
+    lower.includes('استلام الذبيحة') || lower.includes('استلم الذبيحة') ||
+    lower.includes('اخذ اللحم') || lower.includes('أخذ اللحم') ||
+    lower.includes('ابي اللحم') || lower.includes('أبي اللحم') || lower.includes('ابغى اللحم') || lower.includes('أبغى اللحم') ||
+    lower.includes('توصلون اللحم') || lower.includes('ترسلون اللحم') || lower.includes('تشحنون اللحم') ||
+    lower.includes('هل استلم اللحم') || lower.includes('هل أستلم اللحم') ||
+    lower.includes('هل يوصلني اللحم') || lower.includes('اللحم يوصل') || lower.includes('اللحم عندي') ||
+    lower.includes('توصيل اللحم') || lower.includes('توصيل الذبيحة') ||
+    lower.includes('هل اللحم يوصل السعودية') || lower.includes('هل الذبيحة توصل السعودية') ||
+    lower.includes('ابغى الذبيحة عندي') || lower.includes('أبغى الذبيحة عندي') ||
+    lower.includes('ابغى أستلم اللحم') || lower.includes('أبي أستلم اللحم')) {
+    return 'meat_delivery_or_receiving';
   }
 
   const trackingPatterns = [
@@ -600,6 +691,48 @@ edit_cancel: {
           { label: '🟢 واتساب', action: 'support' },
         ],
       },
+      livestock_types: {
+        text: 'المتوفر في متجر أضحيتي يعتمد على الخدمات المعروضة في صفحة الطلب، وتشمل خيارات من المواشي مثل التيوس والخرفان حسب المتاح في المتجر. يمكنك مشاهدة الأنواع والأسعار من صفحة المنتجات مباشرة.',
+        buttons: [
+          { label: 'عرض المنتجات', action: 'shop' },
+          { label: '🟢 واتساب', action: 'support' },
+        ],
+      },
+      goat_sheep_question: {
+        text: 'نعم، تتوفر خيارات من المواشي حسب المعروض في متجر أضحيتي، مثل التيوس والخرفان حسب توفرها في صفحة المنتجات. يمكنك اختيار الخدمة والنوع المناسب من المتجر مباشرة.',
+        buttons: [
+          { label: 'عرض المنتجات', action: 'shop' },
+          { label: '🟢 واتساب', action: 'support' },
+        ],
+      },
+      distribution_country: {
+        text: 'يتم تنفيذ وتوزيع الطلبات خارج المملكة، ويكون التوزيع في أفريقيا حسب آلية التشغيل المعتمدة لدى أضحيتي، مع توثيق مراحل التنفيذ بالصوت والصورة بعد اكتمال الطلب.',
+        buttons: [
+          { label: 'اطلب من المتجر', action: 'shop' },
+          { label: '🟢 واتساب', action: 'support' },
+        ],
+      },
+      delivery_inside_saudi: {
+        text: 'خدمة أضحيتي الحالية ليست توصيل لحوم داخل المملكة. يتم تنفيذ وتوزيع الطلبات خارج المملكة، مع إرسال التوثيق بالصوت والصورة بعد التنفيذ.',
+        buttons: [
+          { label: 'اطلب من المتجر', action: 'shop' },
+          { label: '🟢 واتساب', action: 'support' },
+        ],
+      },
+      execution_location: {
+        text: 'يتم تنفيذ الطلبات خارج المملكة، ويكون التنفيذ والتوزيع في أفريقيا حسب الخدمة المختارة وآلية التشغيل المعتمدة لدى أضحيتي، مع توثيق بالصوت والصورة بعد التنفيذ.',
+        buttons: [
+          { label: 'اطلب من المتجر', action: 'shop' },
+          { label: '🟢 واتساب', action: 'support' },
+        ],
+      },
+      meat_delivery_or_receiving: {
+        text: 'الخدمة لا تشمل توصيل اللحوم للعميل داخل المملكة. يتم تنفيذ وتوزيع الطلبات خارج المملكة، ويصلكم التوثيق بالصوت والصورة بعد اكتمال التنفيذ.',
+        buttons: [
+          { label: 'اطلب من المتجر', action: 'shop' },
+          { label: '🟢 واتساب', action: 'support' },
+        ],
+      },
     };
 
     const response = faqResponses[intent];
@@ -803,6 +936,14 @@ if (proofStatus === 'CANCELLED') {
           break;
         case 'show_service_cards':
           showServiceCards();
+          break;
+        case 'livestock_types':
+        case 'goat_sheep_question':
+        case 'distribution_country':
+        case 'delivery_inside_saudi':
+        case 'execution_location':
+        case 'meat_delivery_or_receiving':
+          showFAQResponse(intent);
           break;
         case 'unknown':
           showUnknown();
