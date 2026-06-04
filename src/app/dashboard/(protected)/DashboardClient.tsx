@@ -152,6 +152,8 @@ export default function DashboardClient() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [platformFilter, setPlatformFilter] = useState('all');
   const [logoutLoading, setLogoutLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [mobileResults, setMobileResults] = useState<SearchResult[]>([]);
@@ -168,43 +170,17 @@ export default function DashboardClient() {
   useEffect(() => {
     fetchStats();
     const timer = setTimeout(() => {
-      fetchOrders();
+      fetchOrders(1);
     }, 50);
     return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setLoading(true);
-      const params = new URLSearchParams();
-
-      if (statusFilter && statusFilter !== 'all') {
-        params.set('status', statusFilter);
-      }
-
-      if (search && search.trim() !== '') {
-        params.set('orderNumber', search);
-      }
-
-      if (mobileSearch && mobileSearch.trim() !== '') {
-        params.set('mobile', mobileSearch);
-      }
-
-      const queryString = params.toString();
-      const url = queryString ? `/api/orders?${queryString}` : '/api/orders';
-
-      fetch(url, { credentials: 'include' })
-        .then(res => res.ok ? res.json() : Promise.reject(res.status))
-        .then(data => {
-          if (Array.isArray(data)) {
-            setOrders(data);
-          }
-        })
-        .catch(err => console.error('FETCH_ORDERS_ERROR', err))
-        .finally(() => setLoading(false));
+      fetchOrders(currentPage);
     }, 300);
     return () => clearTimeout(timer);
-  }, [search, mobileSearch, statusFilter]);
+  }, [search, mobileSearch, statusFilter, currentPage]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -228,9 +204,11 @@ export default function DashboardClient() {
     }
   }
 
-  async function fetchOrders() {
+  async function fetchOrders(page = 1) {
     setLoading(true);
     const params = new URLSearchParams();
+    params.set('page', page.toString());
+    params.set('limit', '50');
 
     if (statusFilter && statusFilter !== 'all') {
       params.set('status', statusFilter);
@@ -244,18 +222,16 @@ export default function DashboardClient() {
       params.set('mobile', mobileSearch);
     }
 
-    const queryString = params.toString();
-    const url = queryString ? `/api/orders?${queryString}` : '/api/orders';
+    const url = `/api/orders?${params.toString()}`;
 
     try {
       const res = await fetch(url, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data)) {
-          setOrders(data);
-        } else {
-          console.error('DASHBOARD_ORDERS_INVALID_DATA', { type: typeof data });
-        }
+        const ordersList = Array.isArray(data) ? data : (data.orders ?? []);
+        setOrders(ordersList);
+        setCurrentPage(data.page || 1);
+        setTotalPages(data.totalPages || 1);
       } else {
         console.error('DASHBOARD_FETCH_ERROR', { status: res.status });
       }
@@ -679,6 +655,28 @@ export default function DashboardClient() {
                     })}
                   </tbody>
                 </table>
+
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 p-4 border-t border-border">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1 rounded border border-border text-sm hover:bg-background-cream disabled:opacity-50"
+                    >
+                      السابق
+                    </button>
+                    <span className="text-sm text-text-secondary">
+                      صفحة {currentPage} من {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1 rounded border border-border text-sm hover:bg-background-cream disabled:opacity-50"
+                    >
+                      التالي
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
