@@ -58,31 +58,17 @@ export default async function OrderDetailsPage({ params }: Props) {
     url: string;
   };
 
-  const r2Ready = !!(
-    process.env.CLOUDFLARE_ACCOUNT_ID &&
-    process.env.CLOUDFLARE_R2_ACCESS_KEY_ID &&
-    process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY &&
-    process.env.CLOUDFLARE_R2_BUCKET
+  let filesWithUrls: FileWithUrl[] = await Promise.all(
+    rawFiles.map(async (file): Promise<FileWithUrl> => {
+      let url = '';
+      try {
+        url = await getSignedDownloadUrl(file.storageKey);
+      } catch {
+        url = '';
+      }
+      return { ...file, url };
+    })
   );
-
-  let filesWithUrls: FileWithUrl[] = [];
-
-  if (!r2Ready) {
-    console.error('R2_CONFIG_MISSING: skipping signed URLs');
-    filesWithUrls = rawFiles.map(file => ({ ...file, url: '' }));
-  } else {
-    filesWithUrls = await Promise.all(
-      rawFiles.map(async (file): Promise<FileWithUrl> => {
-        let url = '';
-        try {
-          url = await getSignedDownloadUrl(file.storageKey);
-        } catch (e) {
-          console.error('SIGNED_URL_FAILED', file.id, e);
-        }
-        return { ...file, url };
-      })
-    );
-  }
 
   return (
     <OrderDetailsClient
