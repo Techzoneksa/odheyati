@@ -102,10 +102,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    if (!['SALLA', 'SHOPIFY'].includes(platform)) {
-      return NextResponse.json({ error: 'Invalid platform' }, { status: 400 });
-    }
-
     const buffer = Buffer.from(await file.arrayBuffer());
     const workbook = XLSX.read(buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
@@ -185,7 +181,7 @@ export async function POST(request: Request) {
         const parsedAmount = parseFloat(amount.replace(/[^\d.]/g, '')) || null;
 
         const existingOrder = await prisma.order.findUnique({
-          where: { platform_orderNumber: { platform: 'SALLA', orderNumber } },
+          where: { orderNumber },
           include: { items: true, files: true },
         });
 
@@ -205,7 +201,7 @@ export async function POST(request: Request) {
           }
 
           await prisma.order.update({
-            where: { platform_orderNumber: { platform: 'SALLA', orderNumber } },
+            where: { orderNumber },
             data: updateData,
           });
 
@@ -250,7 +246,6 @@ export async function POST(request: Request) {
           const newOrder = await prisma.order.create({
             data: {
               orderNumber,
-              platform: 'SALLA',
               customerName,
               customerMobile: fullNumber,
               customerMobileLast4: mobileLast4,
@@ -361,7 +356,7 @@ export async function POST(request: Request) {
         const shopifyStatus = mapShopifyFinancialStatus(financialStatus);
 
         const existingOrder = await prisma.order.findUnique({
-          where: { platform_orderNumber: { platform: 'SHOPIFY', orderNumber } },
+          where: { orderNumber },
           include: { items: true, files: true },
         });
 
@@ -380,7 +375,7 @@ export async function POST(request: Request) {
           }
 
           await prisma.order.update({
-            where: { platform_orderNumber: { platform: 'SHOPIFY', orderNumber } },
+            where: { orderNumber },
             data: updateData,
           });
 
@@ -421,7 +416,6 @@ export async function POST(request: Request) {
           const newOrder = await prisma.order.create({
             data: {
               orderNumber,
-              platform: 'SHOPIFY',
               customerName: billingName || 'عميل Shopify',
               customerMobile: fullNumber || '0000000000',
               customerMobileLast4: mobileLast4 || '0000',
