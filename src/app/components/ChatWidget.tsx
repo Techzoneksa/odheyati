@@ -327,32 +327,111 @@ function detectIntent(text: string): Intent {
     return 'goat_sheep_question';
   }
 
-  if (lower.includes('وين التوزيع') || lower.includes('فين التوزيع') ||
+  if (lower.includes('في اي بلد') || lower.includes('في أي بلد') ||
+    lower.includes('اي بلد') || lower.includes('أي بلد') ||
+    lower.includes('وين التوزيع') || lower.includes('فين التوزيع') ||
     lower.includes('أين التوزيع') || lower.includes('اين التوزيع') ||
+    lower.includes('وين التسليم') || lower.includes('فين التسليم') ||
+    lower.includes('أين التسليم') || lower.includes('اين التسليم') ||
     lower.includes('بلد التوزيع') || lower.includes('دولة التوزيع') ||
-    lower.includes('في أي بلد') || lower.includes('في اي بلد') ||
+    lower.includes('بلد التسليم') || lower.includes('دولة التسليم') ||
+    lower.includes('بلد التنفيذ') || lower.includes('دولة التنفيذ') ||
     lower.includes('التوزيع فين') || lower.includes('التوزيع وين') ||
+    lower.includes('التسليم فين') || lower.includes('التسليم وين') ||
     lower.includes('توزعون فين') || lower.includes('توزعون وين') ||
+    lower.includes('تسلمون فين') || lower.includes('تسلمون وين') ||
     lower.includes('وين توزعون') || lower.includes('فين توزعون') ||
     lower.includes('أين توزعون') || lower.includes('اين توزعون') ||
+    lower.includes('وين توزعين') || lower.includes('فين توزعين') ||
+    lower.includes('أين توزعين') || lower.includes('اين توزعين') ||
+    lower.includes('وين تسلمون') || lower.includes('فين تسلمون') ||
+    lower.includes('أين تسلمون') || lower.includes('اين تسلمون') ||
     lower.includes('مكان التوزيع') || lower.includes('موقع التوزيع') ||
+    lower.includes('مكان التسليم') || lower.includes('موقع التسليم') ||
     lower.includes('لمن توزعون') || lower.includes('على مين توزعون') ||
+    lower.includes('لمن تسلمون') || lower.includes('على مين تسلمون') ||
+    lower.includes('المستفيدين') || lower.includes('المستفيد') ||
     lower.includes('توزيع افريقيا') || lower.includes('توزيع أفريقيا') ||
-    lower.includes('توزعون في افريقيا') || lower.includes('توزعون في أفريقيا')) {
+    lower.includes('توزعون في افريقيا') || lower.includes('توزعون في أفريقيا') ||
+    lower.includes('تنفيذ في افريقيا') || lower.includes('تنفيذ في أفريقيا') ||
+    lower.includes('بلد افريقي') || lower.includes('بلد أفريقي') ||
+    lower.includes('الدولة') || lower.includes('اي دولة') || lower.includes('أي دولة') ||
+    lower.includes('خارج السعودية') || lower.includes('خارج المملكة') ||
+    lower.includes('التوزيع خارج المملكة') || lower.includes('التنفيذ خارج المملكة') ||
+    lower.includes('وين تروح اللحوم') || lower.includes('فين تروح اللحوم') ||
+    lower.includes('وين تروح الذبيحة') || lower.includes('فين تروح الذبيحة') ||
+    lower.includes('اللحم يروح وين') || lower.includes('اللحم يروح لفين') ||
+    lower.includes('هل التوزيع داخل السعودية') || lower.includes('هل التوزيع داخل المملكة') ||
+    lower.includes('هل التسليم داخل السعودية') || lower.includes('هل التسليم داخل المملكة')) {
     return 'distribution_country';
   }
 
   if (lower.includes('توصيل داخل المملكة') || lower.includes('توصيل داخل السعودية') ||
-    lower.includes('هل يوجد توصيل') || lower.includes('هل عندكم توصيل') ||
+    lower.includes('توصيل بالسعودية') || lower.includes('توصيل للمملكة') ||
+    lower.includes('هل يوجد توصيل') || lower.includes('هل عندكم توصيل') || lower.includes('في توصيل') || lower.includes('فيه توصيل') ||
     lower.includes('توصلون') || lower.includes('توصلون داخل السعودية') || lower.includes('توصلون داخل المملكة') ||
-    lower.includes('توصيل للبيت') || lower.includes('توصيل للمنزل') ||
+    lower.includes('توصيل للبيت') || lower.includes('توصيل للمنزل') || lower.includes('توصيل للعميل') ||
+    lower.includes('توصيل لحوم') || lower.includes('توصيل الذبيحة') || lower.includes('توصيل اللحم') ||
     lower.includes('توصلون اللحم') || lower.includes('توصلون الذبيحة') ||
-    lower.includes('توصيل جدة') || lower.includes('توصيل مكة') ||
-    lower.includes('توصيل الرياض') || lower.includes('توصيل المدينة') ||
-    lower.includes('داخل جدة') || lower.includes('داخل مكة') || lower.includes('داخل الرياض') ||
-    lower.includes('الشحن داخل السعودية') ||
-    lower.includes('تغليف اللحم') || lower.includes('شحن اللحم') ||
-    lower.includes('استلام من الفرع') || lower.includes('اخذ من الفرع') || lower.includes('أخذ من الفرع')) {
+    lower.includes('توصلون للبيت') || lower.includes('توصلون المنزل') || lower.includes('توصلون للعنوان') || lower.includes('توصلون لعنواني') ||
+    lower.includes('توصيل جدة') || lower.includes('توصيل مكة') || lower.includes('توصيل مكه') ||
+    lower.includes('توصيل الرياض') || lower.includes('توصيل المدينة') || lower.includes('توصيل المدينة المنورة') ||
+    lower.includes('توصيل الدمام') || lower.includes('توصيل الخبر') || lower.includes('توصيل الظهران') ||
+    lower.includes('توصيل الطائف') || lower.includes('توصيل أبها') || lower.includes('توصيلابها') ||
+    lower.includes('توصيل خميس مشيط') || lower.includes('توصيل جازان') || lower.includes('توصيل جيزان') ||
+    lower.includes('توصيل نجران') || lower.includes('توصيل تبوك') || lower.includes('توصيل حائل') ||
+    lower.includes('توصيل القصيم') || lower.includes('توصيل بريدة') || lower.includes('توصيل عنيزة') ||
+    lower.includes('توصيل الخرج') || lower.includes('توصيل ينبع') || lower.includes('توصيل رابغ') ||
+    lower.includes('توصيل الباحة') || lower.includes('توصيل عرعر') || lower.includes('توصيل سكاكا') ||
+    lower.includes('توصيل القريات') || lower.includes('توصيل حفر الباطن') || lower.includes('توصيل الأحساء') || lower.includes('توصيل الاحساء') ||
+    lower.includes('توصيل الهفوف') || lower.includes('توصيل القطيف') || lower.includes('توصيل الجبيل') ||
+    lower.includes('توصيل بيشة') || lower.includes('توصيل محايل') || lower.includes('توصيل القنفذة') ||
+    lower.includes('توصيل الليث') || lower.includes('توصيل وادي الدواسر') || lower.includes('توصيل الدوادمي') ||
+    lower.includes('توصيل المجمعة') || lower.includes('توصيل الزلفي') || lower.includes('توصيل الرس') ||
+    lower.includes('توصيل الوجه') || lower.includes('توصيل ضباء') || lower.includes('توصيل العلا') ||
+    lower.includes('توصيل رفحاء') || lower.includes('توصيل طريف') || lower.includes('توصيل شرورة') ||
+    lower.includes('توصيل صبيا') || lower.includes('توصيل أحد رفيدة') || lower.includes('توصيل احد رفيدة') ||
+    lower.includes('داخل جدة') || lower.includes('داخل مكة') || lower.includes('داخل مكه') || lower.includes('داخل الرياض') ||
+    lower.includes('داخل الدمام') || lower.includes('داخل المدينة') || lower.includes('داخل الطائف') ||
+    lower.includes('داخل أبها') || lower.includes('داخلابها') || lower.includes('داخل المدينة المنورة') ||
+    lower.includes('داخل جازان') || lower.includes('داخل نجران') || lower.includes('داخل تبوك') ||
+    lower.includes('داخل القصيم') || lower.includes('داخل حائل') ||
+    lower.includes('مناطق المملكة') || lower.includes('كل مناطق المملكة') || lower.includes('جميع مناطق المملكة') ||
+    lower.includes('مدن المملكة') || lower.includes('مناطق السعودية') || lower.includes('كل السعودية') ||
+    lower.includes('جدة') || lower.includes('مكة') || lower.includes('مكه') ||
+    lower.includes('الرياض') || lower.includes('المدينة') || lower.includes('المدينة المنورة') ||
+    lower.includes('الدمام') || lower.includes('الخبر') || lower.includes('الظهران') ||
+    lower.includes('الطائف') || lower.includes('أبها') || lower.includes('ابها') ||
+    lower.includes('خميس مشيط') || lower.includes('جازان') || lower.includes('جيزان') ||
+    lower.includes('نجران') || lower.includes('تبوك') || lower.includes('حائل') ||
+    lower.includes('القصيم') || lower.includes('بريدة') || lower.includes('عنيزة') ||
+    lower.includes('الخرج') || lower.includes('ينبع') || lower.includes('رابغ') ||
+    lower.includes('الباحة') || lower.includes('عرعر') || lower.includes('سكاكا') ||
+    lower.includes('القريات') || lower.includes('حفر الباطن') || lower.includes('الأحساء') || lower.includes('الاحساء') ||
+    lower.includes('الهفوف') || lower.includes('القطيف') || lower.includes('الجبيل') ||
+    lower.includes('بيشة') || lower.includes('محايل') || lower.includes('القنفذة') ||
+    lower.includes('الليث') || lower.includes('وادي الدواسر') || lower.includes('الدوادمي') ||
+    lower.includes('المجمعة') || lower.includes('الزلفي') || lower.includes('الرس') ||
+    lower.includes('الوجه') || lower.includes('ضباء') || lower.includes('العلا') ||
+    lower.includes('رفحاء') || lower.includes('طريف') || lower.includes('شرورة') ||
+    lower.includes('صبيا') || lower.includes('أحد رفيدة') || lower.includes('احد رفيدة') ||
+    lower.includes('الشحن') || lower.includes('شحن اللحم') || lower.includes('شحن الذبيحة') ||
+    lower.includes('تشحنون اللحم') || lower.includes('تشحنون الذبيحة') ||
+    lower.includes('ترسلون اللحم') || lower.includes('ترسلون الذبيحة') ||
+    lower.includes('تغليف اللحم') ||
+    lower.includes('استلام من الفرع') || lower.includes('اخذ من الفرع') || lower.includes('أخذ من الفرع') ||
+    lower.includes('وين استلم') || lower.includes('فين استلم') || lower.includes('أين أستلم') || lower.includes('اين استلم') ||
+    lower.includes('وين استلم اللحم') || lower.includes('فين استلم اللحم') || lower.includes('أين أستلم اللحم') || lower.includes('اين استلم اللحم') ||
+    lower.includes('وين استلم الذبيحة') || lower.includes('فين استلم الذبيحة') || lower.includes('أين أستلم الذبيحة') || lower.includes('اين استلم الذبيحة') ||
+    lower.includes('جدة') && (lower.includes('توصل') || lower.includes('توصيل') || lower.includes('استلم') || lower.includes('أستلم')) ||
+    lower.includes('مكة') && (lower.includes('توصل') || lower.includes('توصيل') || lower.includes('استلم') || lower.includes('أستلم')) ||
+    lower.includes('الرياض') && (lower.includes('توصل') || lower.includes('توصيل') || lower.includes('استلم') || lower.includes('أستلم')) ||
+    lower.includes('الدمام') && (lower.includes('توصل') || lower.includes('توصيل') || lower.includes('استلم') || lower.includes('أستلم')) ||
+    lower.includes('المدينة') && (lower.includes('توصل') || lower.includes('توصيل') || lower.includes('استلم') || lower.includes('أستلم')) ||
+    lower.includes('الطائف') && (lower.includes('توصل') || lower.includes('توصيل') || lower.includes('استلم') || lower.includes('أستلم')) ||
+    lower.includes('أبها') && (lower.includes('توصل') || lower.includes('توصيل') || lower.includes('استلم') || lower.includes('أستلم')) ||
+    lower.includes('جازان') && (lower.includes('توصل') || lower.includes('توصيل') || lower.includes('استلم') || lower.includes('أستلم')) ||
+    lower.includes('تبوك') && (lower.includes('توصل') || lower.includes('توصيل') || lower.includes('استلم') || lower.includes('أستلم'))) {
     return 'delivery_inside_saudi';
   }
 
