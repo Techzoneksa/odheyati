@@ -43,7 +43,6 @@ export default async function OrderDetailsPage({ params }: Props) {
   }
 
   const rawFiles = order.files;
-
   type FileWithUrl = {
     id: string;
     createdAt: Date;
@@ -57,8 +56,8 @@ export default async function OrderDetailsPage({ params }: Props) {
     uploadedById: string | null;
     url: string;
   };
-
-  let filesWithUrls: FileWithUrl[] = await Promise.all(
+  let filesWithUrls: FileWithUrl[] = [];
+  filesWithUrls = await Promise.all(
     rawFiles.map(async (file): Promise<FileWithUrl> => {
       let url = '';
       try {
