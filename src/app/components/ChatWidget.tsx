@@ -703,7 +703,7 @@ if (order.proofStatus === 'CANCELLED') {
       window.open('https://api.whatsapp.com/send?phone=966562365161&text=', '_blank');
       setMessages(prev => [...prev, { role: 'bot', text: 'تم فتح محادثة واتساب معنا! 🌿', buttons: MAIN_OPTIONS }]);
     } else if (action === 'shop') {
-      window.open('https://odheyati.com', '_blank');
+      window.open('https://odheyati.com/ar/%D8%A7%D9%84%D9%85%D9%86%D8%AA%D8%AC%D8%A7%D8%AA/c1947708130', '_blank');
       setMessages(prev => [...prev, { role: 'bot', text: 'تم توجيهك إلى متجر أضحيتي 🌿', buttons: MAIN_OPTIONS }]);
     } else if (action === 'retry') {
       showUnknown();
