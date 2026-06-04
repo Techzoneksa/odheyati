@@ -67,18 +67,11 @@ export async function GET(request: Request) {
     const orderNumber = searchParams.get('orderNumber');
     const mobile = searchParams.get('mobile');
     const status = searchParams.get('status');
-    const platform = searchParams.get('platform');
 
     const whereClause: any = {};
 
-    const ignoreValues = ['all', 'الكل', '', null, undefined];
-
-    if (status && !ignoreValues.includes(status)) {
+    if (status && status !== 'all' && status !== 'الكل' && status.trim() !== '') {
       whereClause.proofStatus = status;
-    }
-
-    if (platform && !ignoreValues.includes(platform) && platform.trim() !== '') {
-      whereClause.platform = platform;
     }
 
     if (orderNumber) {
@@ -98,7 +91,6 @@ export async function GET(request: Request) {
     console.log('ORDERS_QUERY', {
       hasFilters: Object.keys(whereClause).length > 0,
       status,
-      platform,
       orderNumber: !!orderNumber,
       mobile: !!mobile
     });

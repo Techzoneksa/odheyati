@@ -12,12 +12,6 @@ export async function GET(
       return NextResponse.json({ error: 'Token is required' }, { status: 400 });
     }
 
-    console.log('PROOF_LOOKUP', {
-      receivedToken: token,
-      tokenLength: token.length,
-      tokenType: typeof token,
-    });
-
     const order = await prisma.order.findUnique({
       where: { proofToken: token },
       include: {
@@ -28,18 +22,13 @@ export async function GET(
       },
     });
 
-    console.log('PROOF_RESULT', {
-      found: !!order,
-      orderId: order?.id,
-    });
-
     if (!order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
     return NextResponse.json(order);
   } catch (error) {
-    console.error('PROOF_API_ERROR', error);
-    return NextResponse.json({ error: 'Failed to fetch order', details: error instanceof Error ? error.message : String(error) }, { status: 500 });
+    console.error('PROOF_API_ERROR', error instanceof Error ? error.message : String(error));
+    return NextResponse.json({ error: 'Failed to fetch order' }, { status: 500 });
   }
 }

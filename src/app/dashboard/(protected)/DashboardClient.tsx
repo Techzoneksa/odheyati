@@ -167,6 +167,10 @@ export default function DashboardClient() {
 
   useEffect(() => {
     fetchStats();
+    const timer = setTimeout(() => {
+      fetchOrders();
+    }, 50);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -232,10 +236,6 @@ export default function DashboardClient() {
       params.set('status', statusFilter);
     }
 
-    if (platformFilter && platformFilter !== 'all') {
-      params.set('platform', platformFilter);
-    }
-
     if (search && search.trim() !== '') {
       params.set('orderNumber', search);
     }
@@ -247,17 +247,20 @@ export default function DashboardClient() {
     const queryString = params.toString();
     const url = queryString ? `/api/orders?${queryString}` : '/api/orders';
 
-    const res = await fetch(url);
-    if (res.ok) {
-      const data = await res.json();
-      console.log('DASHBOARD_ORDERS', { isArray: Array.isArray(data), length: Array.isArray(data) ? data.length : 'not_array' });
-      if (Array.isArray(data)) {
-        setOrders(data);
+    try {
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setOrders(data);
+        } else {
+          console.error('DASHBOARD_ORDERS_INVALID_DATA', { type: typeof data });
+        }
       } else {
-        console.error('DASHBOARD_ORDERS_ERROR', { type: typeof data, keys: data ? Object.keys(data) : 'null' });
+        console.error('DASHBOARD_FETCH_ERROR', { status: res.status });
       }
-    } else {
-      console.error('DASHBOARD_FETCH_ERROR', { status: res.status });
+    } catch (err) {
+      console.error('DASHBOARD_ORDERS_FAILED', { message: err instanceof Error ? err.message : String(err) });
     }
     setLoading(false);
   }
@@ -376,8 +379,7 @@ export default function DashboardClient() {
   const filteredOrders = orders;
   const hasActiveFilters = (search && search.trim() !== '') ||
     (mobileSearch && mobileSearch.trim() !== '') ||
-    (statusFilter && statusFilter !== 'all') ||
-    (platformFilter && platformFilter !== 'all');
+    (statusFilter && statusFilter !== 'all');
 
   return (
     <div className="min-h-screen bg-background-cream">
