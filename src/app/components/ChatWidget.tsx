@@ -60,7 +60,7 @@ export default function ChatWidget() {
     setInputValue('');
     setIsLoading(true);
 
-    if (text.includes('@') || /^\d[\d\s\-]{6,}$/.test(text.replace(/\s/g, ''))) {
+    if ((text.includes('@') && text.includes('.')) || /^\d[\d\-+()\[\]\s]{6,}$/.test(text.replace(/\s/g, ''))) {
       try {
         const res = await fetch('/api/chat/order-lookup', {
           method: 'POST',
@@ -110,7 +110,7 @@ export default function ChatWidget() {
         ...prev,
         {
           role: 'bot',
-          text: 'فضلاً أدخل رقم الطلب أو رقم الجوال أو البريد الإلكتروني المرتبط بالطلب.\n\nمثال:\n- 1027\n- 05XXXXXXXX\n- test@email.com',
+          text: 'فضلاً أدخل رقم الطلب أو رقم الجوال أو البريد الإلكتروني المرتبط بالطلب.\n\nمثال:\n- 1027\n- 05XXXXXXXX (داخل السعودية)\n- 9715XXXXXXXX (خارج السعودية بدون + أو 00)',
           inputs: [{ placeholder: 'أدخل رقم الطلب أو الجوال أو الإيميل', action: 'lookup' }],
         },
       ]);

@@ -5,58 +5,52 @@ const rateLimit = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT = 10;
 const RATE_WINDOW = 60 * 1000;
 
-function normalizeMobileForChat(mobile: string): string[] {
-  const variations: string[] = [];
-  let cleaned = mobile.replace(/[\s\-()+\[\]]/g, '');
-
-  const countryCodes = ['966', '971', '965', '974', '973', '968'];
-
-  if (cleaned.startsWith('+')) {
-    cleaned = cleaned.substring(1);
+function normalizeMobile(raw: string): { normalized: string; variations: string[] } {
+  const digits = raw.replace(/[\s\-()+\[\]]/g, '');
+  const arabicDigits = '٠١٢٣٤٥٦٧٨٩';
+  let normalized = digits;
+  for (let i = 0; i < arabicDigits.length; i++) {
+    normalized = normalized.split(arabicDigits[i]).join(String(i));
   }
 
-  if (cleaned.startsWith('00')) {
-    cleaned = cleaned.substring(2);
-    variations.push(cleaned);
-  }
+  const variations = new Set<string>();
 
-  if (cleaned.startsWith('0') && cleaned.length > 9) {
-    cleaned = cleaned.substring(1);
-  }
-
-  let detectedCode = '966';
-  for (const code of countryCodes) {
-    if (cleaned.startsWith(code)) {
-      detectedCode = code;
-      break;
+  if (normalized.startsWith('00')) {
+    const without00 = normalized.substring(2);
+    variations.add(without00);
+    if (without00.length >= 9) {
+      variations.add(without00.slice(-9));
+    }
+  } else if (normalized.startsWith('+')) {
+    const withoutPlus = normalized.substring(1);
+    variations.add(withoutPlus);
+    if (withoutPlus.length >= 9) {
+      variations.add(withoutPlus.slice(-9));
+    }
+  } else if (normalized.startsWith('0') && normalized.length > 9) {
+    const without0 = normalized.substring(1);
+    variations.add(without0);
+    if (without0.length >= 9) {
+      variations.add(without0.slice(-9));
+    }
+    if (without0.startsWith('966') || without0.startsWith('971') || without0.startsWith('965') || without0.startsWith('974') || without0.startsWith('973') || without0.startsWith('968')) {
+    } else {
+      variations.add('966' + without0);
+    }
+  } else {
+    variations.add(normalized);
+    if (normalized.length >= 9) {
+      variations.add(normalized.slice(-9));
+    }
+    if (normalized.length >= 7) {
+      variations.add(normalized.slice(-7));
     }
   }
 
-  variations.push(cleaned);
-
-  if (cleaned.startsWith(detectedCode)) {
-    const localNum = cleaned.substring(detectedCode.length);
-    variations.push(localNum);
-    if (localNum.startsWith('0')) {
-      variations.push(localNum.substring(1));
-    }
-  }
-
-  for (const code of countryCodes) {
-    if (!cleaned.startsWith(code) && cleaned.length >= 9) {
-      variations.push(code + cleaned);
-    }
-  }
-
-  if (cleaned.length >= 9) {
-    variations.push(cleaned.slice(-9));
-  }
-
-  if (cleaned.length >= 7) {
-    variations.push(cleaned.slice(-7));
-  }
-
-  return Array.from(new Set(variations)).filter(v => v.length >= 7);
+  return {
+    normalized,
+    variations: Array.from(variations).filter(v => v.length >= 7),
+  };
 }
 
 function getStatusText(status: string): string {
@@ -70,6 +64,11 @@ function getStatusText(status: string): string {
     CANCELLED: 'هذا الطلب ملغي. للتفاصيل يرجى التواصل معنا.',
   };
   return map[status] || status;
+}
+
+function maskForDebug(str: string): string {
+  if (str.length <= 4) return '****';
+  return str.slice(0, 2) + '****' + str.slice(-2);
 }
 
 export async function POST(request: Request) {
@@ -100,14 +99,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'الرجاء إدخال رقم الطلب أو الجوال أو البريد الإلكتروني' }, { status: 400 });
     }
 
+    console.log('CHAT_LOOKUP:', {
+      SEARCH_TYPE: query.includes('@') ? 'email' : (/\d{7,}/.test(query) ? 'numeric' : 'text'),
+      HAS_QUERY: !!query,
+      QUERY_LENGTH: query.length,
+      QUERY_MASKED: maskForDebug(query),
+    });
+
     let orders;
 
-    if (query.includes('@')) {
+    if (query.includes('@') && query.includes('.')) {
       const email = query.toLowerCase().trim();
+      console.log('CHAT_LOOKUP: searching email');
       orders = await prisma.order.findMany({
         where: {
           customerEmail: {
-            contains: email,
+            equals: email,
             mode: 'insensitive',
           },
         },
@@ -117,40 +124,49 @@ export async function POST(request: Request) {
           proofStatus: true,
           proofToken: true,
           createdAt: true,
-          files: {
-            select: { type: true },
-          },
+          files: { select: { type: true } },
         },
         orderBy: { createdAt: 'desc' },
         take: 10,
       });
-    } else if (/^\d+$/.test(query.replace(/\s/g, ''))) {
-      const mobileVariations = normalizeMobileForChat(query);
-      const conditions = mobileVariations.map(m => ({
-        customerMobile: { contains: m },
+      console.log('CHAT_LOOKUP: email result count', orders.length);
+    } else if (/^\d[\d\s\-+()\[\]]*$/.test(query.replace(/\s/g, ''))) {
+      const { normalized, variations } = normalizeMobile(query);
+      console.log('CHAT_LOOKUP: mobile search', {
+        ORIGINAL_MASKED: maskForDebug(query.replace(/\s/g, '')),
+        NORMALIZED_MASKED: maskForDebug(normalized),
+        VARIATIONS_COUNT: variations.length,
+        FIRST_VAR_MASKED: variations[0] ? maskForDebug(variations[0]) : 'none',
+      });
+
+      const mobileConditions = variations.map(v => ({
+        OR: [
+          { customerMobile: { contains: v } },
+          { customerMobileLast4: { contains: v.slice(-4) } },
+        ],
       }));
 
       orders = await prisma.order.findMany({
-        where: { OR: conditions },
+        where: { OR: mobileConditions },
         select: {
           orderNumber: true,
           customerName: true,
           proofStatus: true,
           proofToken: true,
           createdAt: true,
-          files: {
-            select: { type: true },
-          },
+          files: { select: { type: true } },
         },
         orderBy: { createdAt: 'desc' },
         take: 10,
       });
+      console.log('CHAT_LOOKUP: mobile result count', orders.length);
 
       if (orders.length === 0) {
+        console.log('CHAT_LOOKUP: falling back to orderNumber contains');
         orders = await prisma.order.findMany({
           where: {
             orderNumber: {
-              contains: query,
+              contains: normalized,
               mode: 'insensitive',
             },
           },
@@ -160,15 +176,15 @@ export async function POST(request: Request) {
             proofStatus: true,
             proofToken: true,
             createdAt: true,
-            files: {
-              select: { type: true },
-            },
+            files: { select: { type: true } },
           },
           orderBy: { createdAt: 'desc' },
           take: 10,
         });
+        console.log('CHAT_LOOKUP: orderNumber fallback result count', orders.length);
       }
     } else {
+      console.log('CHAT_LOOKUP: fallback to orderNumber text search');
       orders = await prisma.order.findMany({
         where: {
           orderNumber: {
@@ -182,16 +198,16 @@ export async function POST(request: Request) {
           proofStatus: true,
           proofToken: true,
           createdAt: true,
-          files: {
-            select: { type: true },
-          },
+          files: { select: { type: true } },
         },
         orderBy: { createdAt: 'desc' },
         take: 10,
       });
+      console.log('CHAT_LOOKUP: text search result count', orders.length);
     }
 
     if (orders.length === 0) {
+      console.log('CHAT_LOOKUP: no results found, returning not found');
       return NextResponse.json({
         found: false,
         message: 'لم أجد طلبًا مرتبطًا بهذه البيانات. تأكد من رقم الطلب أو الجوال أو البريد الإلكتروني وحاول مرة أخرى.',
@@ -206,6 +222,10 @@ export async function POST(request: Request) {
       hasMedia: o.files.length > 0,
       proofUrl: `/proof/${o.proofToken}`,
     }));
+
+    console.log('CHAT_LOOKUP: found', orders.length, 'order(s)', {
+      FIRST_ORDER_NUMBER: orders[0]?.orderNumber,
+    });
 
     return NextResponse.json({ found: true, orders: result });
 
