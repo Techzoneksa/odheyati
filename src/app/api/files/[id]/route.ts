@@ -20,11 +20,24 @@ export async function GET(request: Request, { params }: Props) {
 
     try {
       const signedUrl = await getSignedDownloadUrl(file.storageKey);
+      console.error('PROOF_FILE_DEBUG', {
+        stage: 'SIGNED_URL_SUCCESS',
+        fileId: id,
+        fileOrderId: file.orderId,
+        fileType: file.type,
+        storageKeyStart: file.storageKey.slice(0, 20),
+        storageKeyEnd: file.storageKey.slice(-20),
+      });
       return NextResponse.redirect(signedUrl);
     } catch (urlError) {
-      console.error('SIGNED_URL_ERROR', {
-        stage: 'BUILD_SIGNED_URL',
-        fileIdPresent: Boolean(id)
+      console.error('PROOF_FILE_DEBUG', {
+        stage: 'SIGNED_URL_ERROR',
+        fileId: id,
+        fileOrderId: file.orderId,
+        fileType: file.type,
+        storageKeyStart: file.storageKey.slice(0, 20),
+        storageKeyEnd: file.storageKey.slice(-20),
+        errorMessage: urlError instanceof Error ? urlError.message : String(urlError),
       });
       return NextResponse.json({ error: 'Failed to generate download URL' }, { status: 500 });
     }

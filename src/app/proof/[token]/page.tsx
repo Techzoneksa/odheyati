@@ -208,6 +208,17 @@ export default function ProofPage({ params }: Props) {
       }
 
       const data = await res.json();
+
+      console.error('PROOF_FILE_DEBUG', {
+        stage: 'ORDER_FETCHED',
+        token: t,
+        orderFound: Boolean(data.id),
+        orderNumber: data.orderNumber,
+        proofStatus: data.proofStatus,
+        filesCount: data.files?.length || 0,
+        hasFiles: (data.files?.length || 0) > 0,
+      });
+
       setOrder(data);
       setLoading(false);
     } catch (err) {
