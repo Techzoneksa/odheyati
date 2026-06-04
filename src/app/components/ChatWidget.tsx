@@ -28,12 +28,18 @@ type Intent =
   | 'store_order'
   | 'support'
   | 'lookup_input'
-  | 'faq_company_type'
-  | 'faq_official_store'
-  | 'faq_execution_mechanism'
-  | 'faq_duration'
-  | 'faq_delivery'
-  | 'faq_cancellation'
+  | 'charity_or_commercial'
+  | 'official_store_trust'
+  | 'prices'
+  | 'how_to_order'
+  | 'execution_process'
+  | 'execution_duration'
+  | 'proof_delivery'
+  | 'edit_cancel'
+  | 'complaints'
+  | 'payment'
+  | 'services_available'
+  | 'location_execution'
   | 'unknown';
 
 function toDigits(str: string): string {
@@ -61,79 +67,215 @@ function detectIntent(text: string): Intent {
     return 'lookup_input';
   }
 
+  const cleanText = lower.replace(/[.!؟?،,]/g, '').trim();
   const exactGreetings = [
     'السلام عليكم', 'عليكم السلام', 'سلام عليكم', 'وعليكم السلام',
-    'هلا', 'هلا والله', 'هلاا',
+    'هلا', 'هلا والله', 'هلاا', 'هلا هلو',
     'مرحبا', 'مرحباً', 'مرحب',
     'أهلًا', 'اهلا', 'اهلاا',
     'صباح الخير', 'مساء الخير',
-    'حياك', 'حياك الله',
+    'حياك', 'حياك الله', 'حيكم',
     'الو', 'هاي', 'hoy', 'hi', 'hello',
+    'كيفك', 'كيف حالك', 'عاملين ايه', 'الوو',
   ];
-
-  const cleanText = lower.replace(/[.!؟?،,]/g, '').trim();
   if (exactGreetings.some(p => cleanText === p || cleanText.startsWith(p + ' '))) {
     return 'greeting';
   }
 
   if (lower.includes('جهة خيرية') || lower.includes('خيرية') || lower.includes('جمعية') ||
-    lower.includes('تبرع') || lower.includes('متبرع') || lower.includes('شركة تجارية') ||
+    lower.includes('تبرع') || lower.includes('تبرعات') || lower.includes('متبرع') ||
+    lower.includes('صدقة') || lower.includes('صدقات') || lower.includes('زكاة') || lower.includes('زكاه') ||
+    lower.includes('وقف') || lower.includes('اوقاف') || lower.includes('أوقاف') ||
+    lower.includes('احسان') || lower.includes('إحسان') ||
+    lower.includes('منصة خيرية') || lower.includes('جمعية خيرية') ||
     lower.includes('هل انتم جمعية') || lower.includes('هل أنتم جمعية') ||
-    lower.includes('هل انتم جهة') || lower.includes('هل أنتم جهة') ||
-    lower.includes('هل انتم شركة')) {
-    return 'faq_company_type';
+    lower.includes('هل انتم جهة خيرية') || lower.includes('هل أنتم جهة خيرية') ||
+    lower.includes('هل تجمعون تبرعات') || lower.includes('هل تستقبلون تبرعات') ||
+    lower.includes('هل هذا تبرع') || lower.includes('هل المبلغ تبرع') ||
+    lower.includes('تبرعون') || lower.includes('تبرعوها') ||
+    lower.includes('محتاجين') || lower.includes('مساكين') || lower.includes('فقراء') ||
+    lower.includes('خيري') ||
+    lower.includes('خيرية ولا تجارية') || lower.includes('شركة ولا جمعية') ||
+    lower.includes('شركة تجارية') || lower.includes('متجر تجاري') ||
+    lower.includes('هل انتم شركة') || lower.includes('هل أنتم شركة') ||
+    lower.includes('هل عندكم تصريح تبرعات') || lower.includes('تصريح تبرع') || lower.includes('ترخيص تبرعات')) {
+    return 'charity_or_commercial';
   }
 
-  if (lower.includes('موثق') || lower.includes('رسمي') || lower.includes('معتمد') ||
-    lower.includes('تصريح') || lower.includes('ترخيص') || lower.includes('سجل تجاري') ||
-    lower.includes('المركز السعودي') || lower.includes('هل المتجر موثق') ||
+  if (lower.includes('موثق') || lower.includes('توثيق المتجر') || lower.includes('المتجر موثق') ||
+    lower.includes('رسمي') || lower.includes('معتمد') || lower.includes('ثقة') || lower.includes('موثوق') ||
+    lower.includes('مضمون') || lower.includes('آمن') || lower.includes('امن') ||
+    lower.includes('هل المتجر رسمي') || lower.includes('هل المتجر موثق') ||
     lower.includes('هل انتم موثقين') || lower.includes('هل أنتم موثقين') ||
-    lower.includes('هل المتجر رسمي')) {
-    return 'faq_official_store';
+    lower.includes('هل انتم رسميين') || lower.includes('هل أنتم رسميين') ||
+    lower.includes('سجل تجاري') || lower.includes('السجل التجاري') || lower.includes('رقم السجل') ||
+    lower.includes('اعطني السجل') || lower.includes('أعطني السجل') || lower.includes('وين السجل') ||
+    lower.includes('رقم السجل التجاري') ||
+    lower.includes('شهادة توثيق') || lower.includes('رقم التوثيق') || lower.includes('شهادة المركز السعودي') ||
+    lower.includes('المركز السعودي للأعمال') || lower.includes('شهادة المركز السعودي') ||
+    lower.includes('تصريح') || lower.includes('ترخيص') || lower.includes('رخصة') ||
+    lower.includes('هل عندكم رخصة') || lower.includes('هل عندكم ترخيص') || lower.includes('هل عندكم سجل') ||
+    lower.includes('اثبات') || lower.includes('إثبات') || lower.includes('كيف اثق') || lower.includes('كيف أثق') ||
+    lower.includes('هل الموقع آمن') || lower.includes('هل الدفع آمن') || lower.includes('هل الطلب مضمون') ||
+    lower.includes('هل في ضمان') || lower.includes('هل انتم نصابين') || lower.includes('هل الموقع حقيقي') ||
+    lower.includes('هل المتجر حقيقي') || lower.includes('ارفع شكوى')) {
+    return 'official_store_trust';
+  }
+
+  if (lower.includes('السعر') || lower.includes('اسعار') || lower.includes('أسعار') ||
+    lower.includes('كم السعر') || lower.includes('كم سعر') || lower.includes('بكم') ||
+    lower.includes('كم التكلفة') || lower.includes('التكلفة') || lower.includes('تكلفة') ||
+    lower.includes('كم قيمة') || lower.includes('قيمة الطلب') ||
+    lower.includes('كم قيمة الاضحية') || lower.includes('كم قيمة الأضحية') ||
+    lower.includes('كم العقيقة') || lower.includes('سعر العقيقة') ||
+    lower.includes('سعر النذر') || lower.includes('سعر الكفارة') || lower.includes('سعر الذبيحة') ||
+    lower.includes('بكم الذبيحة') || lower.includes('بكم الاضحية') || lower.includes('بكم الأضحية') ||
+    lower.includes('العروض') || lower.includes('عرض') || lower.includes('خصم') ||
+    lower.includes('كود خصم') || lower.includes('هل فيه خصم') || lower.includes('هل عندكم عروض') ||
+    lower.includes('ارخص') || lower.includes('أرخص') || lower.includes('غالي') || lower.includes('غالية') ||
+    lower.includes('كم ادفع') || lower.includes('كم الدفع') || lower.includes('الدفع') ||
+    lower.includes('هل السعر شامل') || lower.includes('ضريبة') || lower.includes('الضريبة')) {
+    return 'prices';
+  }
+
+  if (lower.includes('كيف اطلب') || lower.includes('كيف أطلب') ||
+    lower.includes('ابي اطلب') || lower.includes('أبي أطلب') ||
+    lower.includes('ابغى اطلب') || lower.includes('أبغى أطلب') ||
+    lower.includes('اريد اطلب') || lower.includes('أريد أطلب') ||
+    lower.includes('طريقة الطلب') || lower.includes('كيف اسوي طلب') || lower.includes('كيف أسوي طلب') ||
+    lower.includes('كيف اشتري') || lower.includes('كيف أشتري') ||
+    lower.includes('الطلب من وين') || lower.includes('من وين اطلب') ||
+    lower.includes('رابط الطلب') || lower.includes('رابط المتجر') ||
+    lower.includes('ادخل المتجر') || lower.includes('وين المتجر') ||
+    lower.includes('اطلب الآن') || lower.includes('اطلب الان') ||
+    lower.includes('طلب خدمة') ||
+    (lower.includes('ابي') && (lower.includes('اضحية') || lower.includes('أضحية') || lower.includes('عقيقة') || lower.includes('نذر') || lower.includes('كفارة') || lower.includes('ذبيحة'))) ||
+    (lower.includes('أبي') && (lower.includes('أضحية') || lower.includes('عقيقة') || lower.includes('نذر') || lower.includes('كفارة'))) ||
+    lower.includes('اضحية') || lower.includes('أضحية') ||
+    lower.includes('عقيقة') || lower.includes('نذر') || lower.includes('كفارة') || lower.includes('ذبيحة')) {
+    return 'how_to_order';
   }
 
   if (lower.includes('آلية التنفيذ') || lower.includes('الية التنفيذ') ||
     lower.includes('كيف التنفيذ') || lower.includes('كيف يتم التنفيذ') ||
     lower.includes('كيف تنفذون') || lower.includes('طريقة التنفيذ') ||
     lower.includes('مراحل التنفيذ') || lower.includes('بعد الطلب ايش يصير') ||
-    lower.includes('بعد الطلب وش') || lower.includes('كيف تتم آلية')) {
-    return 'faq_execution_mechanism';
+    lower.includes('بعد الطلب وش') || lower.includes('وش يصير بعد الطلب') ||
+    lower.includes('ايش يصير بعد الطلب') || lower.includes('كيف تذبحون') ||
+    lower.includes('كيف يتم الذبح') || lower.includes('التنفيذ كيف') || lower.includes('تنفيذ الطلب') ||
+    lower.includes('الذبح') || lower.includes('التوزيع') || lower.includes('توزيع اللحوم') ||
+    lower.includes('مين ينفذ') || lower.includes('من ينفذ') ||
+    lower.includes('اشراف') || lower.includes('إشراف') || lower.includes('مختص') ||
+    lower.includes('موثق بالصوت والصورة') || lower.includes('التوثيق كامل') ||
+    lower.includes('خطوات الطلب') || lower.includes('خطوات التنفيذ')) {
+    return 'execution_process';
   }
 
   if (lower.includes('كم يستغرق') || lower.includes('مدة التنفيذ') ||
     lower.includes('متى التنفيذ') || lower.includes('متى يتم التنفيذ') ||
-    lower.includes('كم يوم') || lower.includes('كم مدة') ||
-    lower.includes('متى يجهز') || lower.includes('متى يوصل') || lower.includes('متى يخلص')) {
-    return 'faq_duration';
+    lower.includes('كم يوم') || lower.includes('كم مدة') || lower.includes('كم مدة الطلب') ||
+    lower.includes('متى يجهز') || lower.includes('متى يوصل') || lower.includes('متى يخلص') ||
+    lower.includes('متى ينفذ') || lower.includes('متى يتم الذبح') ||
+    lower.includes('متى التوثيق') || lower.includes('مدة التوثيق') || lower.includes('كم يوم التوثيق') ||
+    lower.includes('تأخير') || lower.includes('تاخير') || lower.includes('تأخر الطلب') || lower.includes('تاخر الطلب') ||
+    lower.includes('ليش تأخر') || lower.includes('ليش تاخر') || lower.includes('لماذا تأخر') ||
+    lower.includes('كم باقي') || lower.includes('متى يخلص') || lower.includes('متى ترسلون') ||
+    lower.includes('متى التقرير') || lower.includes('كم ياخذ وقت') || lower.includes('كم تستغرق الخدمة')) {
+    return 'execution_duration';
   }
 
-  if (lower.includes('استلام التوثيق') || lower.includes('كيف استلم') ||
-    lower.includes('كيف يوصلي') || lower.includes('وين التوثيق') ||
-    lower.includes('تقرير PDF') || lower.includes('ملف PDF') ||
-    lower.includes('هل ترسلون') || lower.includes('توثيق صوت') ||
-    lower.includes('استلم التقرير') || lower.includes('كيف اجيب التوثيق') ||
-    lower.includes('متى يوصل التقرير') || lower.includes('التوثيق يوصل') ||
-    (lower.includes('التوثيق') && lower.includes('واتساب')) ||
-    lower.includes('كيف يوصلني')) {
-    return 'faq_delivery';
+  if (lower.includes('استلام التوثيق') || lower.includes('كيف استلم') || lower.includes('كيف استلم التوثيق') ||
+    lower.includes('كيف يوصلي') || lower.includes('كيف يوصلني') || lower.includes('وين التوثيق') ||
+    lower.includes('تقرير PDF') || lower.includes('pdf') || lower.includes('ملف PDF') ||
+    lower.includes('هل ترسلون التوثيق') || lower.includes('توثيق صوت وصورة') ||
+    lower.includes('الصوت والصورة') || lower.includes('الواتساب') || lower.includes('واتساب') ||
+    lower.includes('يرسل واتساب') || lower.includes('ترسلون واتساب') ||
+    lower.includes('الفيديو') || lower.includes('فيديو') || lower.includes('الصورة') || lower.includes('الصور') ||
+    lower.includes('رابط التوثيق') || lower.includes('توثيق الطلب') ||
+    lower.includes('كيف اشوف الفيديو') || lower.includes('كيف أشوف الفيديو') ||
+    lower.includes('فين الفيديو') || lower.includes('وين الفيديو') ||
+    lower.includes('متى الفيديو') || lower.includes('متى الصور') ||
+    lower.includes('التوثيق ما وصل') || lower.includes('ما وصلني التوثيق') ||
+    lower.includes('ما وصل التقرير') || lower.includes('ما وصلني التقرير') ||
+    lower.includes('وصلوني التوثيق') || lower.includes('ارسلوا التوثيق') || lower.includes('أرسلوا التوثيق')) {
+    return 'proof_delivery';
   }
 
-  if (lower.includes('تعديل الطلب') || lower.includes('الغاء الطلب') ||
-    lower.includes('إلغاء الطلب') || lower.includes('اقدر الغي') ||
-    lower.includes('أقدر ألغي') || lower.includes('اقدر اعدل') ||
-    lower.includes('أقدر أعدل') || lower.includes('الغاء') ||
-    lower.includes('إلغاء') || lower.includes('استرجاع') ||
-    (lower.includes('طلبي') && (lower.includes('اغير') || lower.includes('اعدل') || lower.includes('الغى') || lower.includes('الغقي') || lower.includes('يلغي') || lower.includes('يلغى') || lower.includes('اغير'))) ||
-    lower.includes('تغيير الطلب')) {
-    return 'faq_cancellation';
+  if (lower.includes('تعديل الطلب') || lower.includes('الغاء الطلب') || lower.includes('إلغاء الطلب') ||
+    lower.includes('الغاء') || lower.includes('إلغاء') ||
+    lower.includes('اقدر الغي') || lower.includes('أقدر ألغي') ||
+    lower.includes('اقدر اعدل') || lower.includes('أقدر أعدل') ||
+    lower.includes('تغيير الطلب') || lower.includes('استرجاع') || lower.includes('استرداد') ||
+    lower.includes('استرجع المبلغ') || lower.includes('ارجاع المبلغ') || lower.includes('إرجاع المبلغ') ||
+    lower.includes('استبدال') || lower.includes('تغيير الاسم') || lower.includes('تغيير الرقم') ||
+    lower.includes('تغيير النية') || lower.includes('تعديل البيانات') ||
+    lower.includes('غلطت في الطلب') || lower.includes('اخطأت') || lower.includes('أخطأت') ||
+    lower.includes('كتبت غلط') || lower.includes('الطلب غلط') ||
+    lower.includes('ابي اغير') || lower.includes('أبي أغير') ||
+    lower.includes('ابي الغي') || lower.includes('أبي ألغي') ||
+    lower.includes('قبل التنفيذ') || lower.includes('بعد التنفيذ') ||
+    lower.includes('بدأ التنفيذ') || lower.includes('بدء التنفيذ')) {
+    return 'edit_cancel';
+  }
+
+  if (lower.includes('شكوى') || lower.includes('شكاوى') || lower.includes('اشتكي') || lower.includes('أشتكي') ||
+    lower.includes('ابي اشتكي') || lower.includes('أبي أشتكي') ||
+    lower.includes('مشكلة') || lower.includes('عندي مشكلة') || lower.includes('فيها مشكلة') ||
+    lower.includes('خدمة العملاء') || lower.includes('الدعم') || lower.includes('الدعم الفني') ||
+    lower.includes('ما ردوا') || lower.includes('ما احد رد') || lower.includes('ما أحد رد') ||
+    lower.includes('تأخير') || lower.includes('تاخير') || lower.includes('ما وصل') || lower.includes('ما وصلني') ||
+    lower.includes('غلط') || lower.includes('خطأ') || lower.includes('خطا') || lower.includes('سيء') || lower.includes('سيئة') ||
+    lower.includes('زعلان') || lower.includes('غير راضي') || lower.includes('مو راضي') ||
+    lower.includes('استفسار') || lower.includes('تواصل') || lower.includes('اتصلوا علي') || lower.includes('اتصلو علي') ||
+    lower.includes('رقم الدعم') || lower.includes('رقم الواتس') ||
+    lower.includes('الواتساب') || lower.includes('واتس') || lower.includes('واتساب') ||
+    lower.includes('خدمة سيئة') || lower.includes('ارفع شكوى')) {
+    return 'complaints';
+  }
+
+  if (lower.includes('الدفع') || lower.includes('طريقة الدفع') || lower.includes('طرق الدفع') ||
+    lower.includes('كيف ادفع') || lower.includes('كيف أدفع') ||
+    lower.includes('مدى') || lower.includes('فيزا') || lower.includes('ماستر') || lower.includes('ابل باي') ||
+    lower.includes('Apple Pay') || lower.includes('تحويل') || lower.includes('حوالة') ||
+    lower.includes('دفع آمن') || lower.includes('الدفع آمن') ||
+    lower.includes('فشل الدفع') || lower.includes('مشكلة دفع') ||
+    lower.includes('خصم المبلغ') || lower.includes('انخصم المبلغ') || lower.includes('تم الخصم') ||
+    lower.includes('الدفع ما تم') || lower.includes('ما قدرت ادفع') ||
+    lower.includes('رابط دفع') || lower.includes('فاتورة') || lower.includes('الفاتورة') ||
+    lower.includes('إيصال') || lower.includes('ايصال')) {
+    return 'payment';
+  }
+
+  if (lower.includes('الخدمات') || lower.includes('خدماتكم') || lower.includes('وش خدماتكم') ||
+    lower.includes('ايش خدماتكم') || lower.includes('إيش خدماتكم') ||
+    lower.includes('ماهي الخدمات') || lower.includes('ما هي الخدمات') ||
+    lower.includes('الخدمات المتاحة') || lower.includes('وش تقدمون') || lower.includes('ايش تقدمون') ||
+    lower.includes('عندكم اضحية') || lower.includes('عندكم أضحية') ||
+    lower.includes('عندكم عقيقة') || lower.includes('عندكم نذر') || lower.includes('عندكم كفارة') ||
+    lower.includes('ذبيحة') || lower.includes('ذبائح')) {
+    return 'services_available';
+  }
+
+  if (lower.includes('أين التنفيذ') || lower.includes('اين التنفيذ') || lower.includes('وين التنفيذ') ||
+    lower.includes('مكان التنفيذ') || lower.includes('فين التنفيذ') ||
+    lower.includes('في أي دولة') || lower.includes('الدولة') ||
+    lower.includes('أفريقيا') || lower.includes('افريقيا') ||
+    lower.includes('داخل السعودية') || lower.includes('خارج السعودية') ||
+    lower.includes('وين تذبحون') || lower.includes('فين تذبحون') ||
+    lower.includes('مكان الذبح') || lower.includes('موقع الذبح') ||
+    lower.includes('توزيع وين') || lower.includes('وين التوزيع') ||
+    lower.includes('خارج المملكة') || lower.includes('داخل المملكة')) {
+    return 'location_execution';
   }
 
   const trackingPatterns = [
-    'حالة طلبي', 'وين طلبي', 'توثيق', 'فيديو', 'صورة',
-    'وصل التوثيق', 'بروافع', 'بروف',
-    'ابي اتابع', 'تابع طلب', 'متابعة طلب',
-    'وش حال طلبي', 'كيف حال طلبي', 'جالة الطلب',
-    'طلب رقم', 'رقم الطلب',
+    'تتبع', 'تتبع الطلب', 'تابع الطلب', 'متابعة الطلب',
+    'حالة طلبي', 'حالة الطلب', 'وين طلبي', 'فين طلبي',
+    'توثيق طلبي', 'مشاهدة التوثيق',
+    'وصل التوثيق', 'ما وصل التوثيق',
+    'حالة التوثيق', 'ابي اشوف طلبي', 'أبي أشوف طلبي',
+    'ابي التوثيق', 'أبي التوثيق',
+    'اوردر', 'أوردر', 'order',
   ];
   if (trackingPatterns.some(p => lower.includes(p))) {
     return 'order_tracking';
@@ -168,7 +310,7 @@ const MAIN_OPTIONS = [
   { label: 'تتبع الطلب', action: 'track' },
   { label: 'مشاهدة التوثيق', action: 'view_proof' },
   { label: 'طلب خدمة من المتجر', action: 'store' },
-  { label: 'التواصل مع الدعم', action: 'support' },
+  { label: '🟢 واتساب', action: 'support' },
 ];
 
 const SERVICE_REPLIES: Record<string, { text: string }> = {
@@ -274,7 +416,7 @@ export default function ChatWidget() {
       text: reply.text,
       buttons: [
         { label: 'اطلب من المتجر', action: 'shop' },
-        { label: 'التواصل مع الدعم', action: 'support' },
+        { label: '🟢 واتساب', action: 'support' },
       ],
     }]);
   };
@@ -297,48 +439,89 @@ export default function ChatWidget() {
 
   const showFAQResponse = (intent: string) => {
     const faqResponses: Record<string, { text: string; buttons: { label: string; action: string }[] }> = {
-      faq_company_type: {
-        text: 'نحن شركة سعودية مرخصة ومسجلة بسجل تجاري رقم 7052388860، ولسنا جهة خيرية، ونقدم خدماتنا ضمن إطار تجاري موثوق.',
+      charity_or_commercial: {
+        text: 'نحن شركة سعودية مرخصة ومسجلة بسجل تجاري رقم 7052388860، ولسنا جهة خيرية ولا نجمع تبرعات. نقدم خدماتنا ضمن إطار تجاري موثوق يشمل طلب الذبائح وتنفيذها وتوثيقها حسب الخدمة المختارة.',
         buttons: [
           { label: 'اطلب من المتجر', action: 'shop' },
-          { label: 'التواصل مع الدعم', action: 'support' },
+          { label: '🟢 واتساب', action: 'support' },
         ],
       },
-      faq_official_store: {
-        text: 'متجرنا الإلكتروني موثق ومعتمد لدى المركز السعودي للأعمال، شهادة رقم 0000129587، ونوفر تجربة شراء آمنة. نحن شركة سعودية رسمية بسجل تجاري رقم 7052388860 ونعمل وفق أعلى معايير الموثوقية.',
+      official_store_trust: {
+        text: 'متجر أضحيتي الإلكتروني موثق ومعتمد لدى المركز السعودي للأعمال، شهادة رقم 0000129587. نحن شركة سعودية رسمية بسجل تجاري رقم 7052388860، ونوفر تجربة شراء آمنة وموثوقة مع توثيق الطلب بعد التنفيذ.',
         buttons: [
           { label: 'اطلب من المتجر', action: 'shop' },
-          { label: 'التواصل مع الدعم', action: 'support' },
+          { label: '🟢 واتساب', action: 'support' },
         ],
       },
-      faq_execution_mechanism: {
+      prices: {
+        text: 'يمكنك الاطلاع على الأسعار والخدمات المتاحة مباشرة من متجر أضحيتي، حيث تظهر لك تفاصيل كل خدمة قبل إتمام الطلب. جميع الطلبات تتم عبر المتجر بشكل واضح وآمن.',
+        buttons: [
+          { label: 'عرض الأسعار في المتجر', action: 'shop' },
+          { label: '🟢 واتساب', action: 'support' },
+        ],
+      },
+      how_to_order: {
+        text: 'يمكنك طلب الخدمة مباشرة من متجر أضحيتي عبر الرابط التالي. اختر الخدمة المناسبة، أكمل بيانات الطلب، وسيتم تنفيذ الطلب مع توثيق بالصوت والصورة بعد اكتمال التنفيذ.',
+        buttons: [
+          { label: 'اطلب من المتجر', action: 'shop' },
+          { label: '🟢 واتساب', action: 'support' },
+        ],
+      },
+      execution_process: {
         text: 'بعد إتمام الطلب، يتم تجهيز الذبيحة وفق الخيارات التي يحددها العميل، ثم تنفيذ عملية الذبح بإشراف مختص. بعد ذلك يتم توزيع اللحوم حسب نوع الخدمة المختارة، مع توثيق كامل لجميع المراحل.',
         buttons: [
           { label: 'اطلب من المتجر', action: 'shop' },
           { label: 'تتبع الطلب', action: 'track' },
-          { label: 'التواصل مع الدعم', action: 'support' },
+          { label: '🟢 واتساب', action: 'support' },
         ],
       },
-      faq_duration: {
-        text: 'مدة تنفيذ الطلب تصل إلى 10 أيام.',
+      execution_duration: {
+        text: 'مدة تنفيذ الطلب تصل إلى 10 أيام. ويمكنك متابعة حالة الطلب من خلال رقم الطلب أو الجوال أو البريد الإلكتروني المرتبط بالطلب.',
         buttons: [
           { label: 'تتبع الطلب', action: 'track' },
+          { label: '🟢 واتساب', action: 'support' },
+        ],
+      },
+      proof_delivery: {
+        text: 'فور الانتهاء من جميع مراحل التوثيق، يتم إرسال التقرير إلى رقم الواتساب الخاص بكم في ملف PDF مرتب وواضح. ويمكنك أيضًا متابعة التوثيق من خلال رقم الطلب أو الجوال أو البريد الإلكتروني.',
+        buttons: [
+          { label: 'تتبع الطلب', action: 'track' },
+          { label: '🟢 واتساب', action: 'support' },
+        ],
+      },
+edit_cancel: {
+        text: 'يمكن طلب التعديل أو الإلغاء قبل بدء تنفيذ الطلب. أما بعد بدء التنفيذ، فلا يمكن الإلغاء نظرًا لارتباط الخدمة بإجراءات تشغيلية مباشرة. للتأكد من حالة طلبك يمكنك التواصل عبر واتساب.',
+        buttons: [
+          { label: '🟢 واتساب', action: 'support' },
+          { label: 'تتبع الطلب', action: 'track' },
+        ],
+      },
+      complaints: {
+        text: 'نعتذر لك عن أي إزعاج، ويسعدنا خدمتك ومتابعة طلبك. يمكنك التواصل مباشرة مع الدعم عبر الواتساب، وسيتم مساعدتك بأقرب وقت.',
+        buttons: [
+          { label: '🟢 واتساب', action: 'support' },
+          { label: 'تتبع الطلب', action: 'track' },
+        ],
+      },
+      payment: {
+        text: 'يتم إتمام الطلب والدفع من خلال متجر أضحيتي الإلكتروني بشكل آمن وواضح. إذا واجهتك مشكلة في الدفع أو الفاتورة، يمكنك التواصل معنا عبر واتساب لمساعدتك.',
+        buttons: [
           { label: 'اطلب من المتجر', action: 'shop' },
-          { label: 'التواصل مع الدعم', action: 'support' },
+          { label: '🟢 واتساب', action: 'support' },
         ],
       },
-      faq_delivery: {
-        text: 'فور الانتهاء من جميع مراحل التوثيق، يتم إرسال التقرير إلى رقم الواتساب الخاص بكم في ملف PDF مرتب وواضح.',
+      services_available: {
+        text: 'تتوفر في متجر أضحيتي خدمات متعددة مثل الأضحية، العقيقة، النذر، والكفارة، مع توثيق بالصوت والصورة بعد التنفيذ.',
         buttons: [
-          { label: 'تتبع الطلب', action: 'track' },
-          { label: 'التواصل مع الدعم', action: 'support' },
+          { label: 'اطلب من المتجر', action: 'shop' },
+          { label: '🟢 واتساب', action: 'support' },
         ],
       },
-      faq_cancellation: {
-        text: 'يمكن طلب التعديل أو الإلغاء قبل بدء تنفيذ الطلب. أما بعد بدء التنفيذ، فلا يمكن الإلغاء نظرًا لارتباط الخدمة بإجراءات تشغيلية مباشرة.',
+      location_execution: {
+        text: 'يتم تنفيذ الطلبات حسب الخدمة المختارة وآلية التشغيل المعتمدة لدى أضحيتي، مع توثيق مراحل التنفيذ بالصوت والصورة بعد اكتمال الطلب.',
         buttons: [
-          { label: 'التواصل مع الدعم', action: 'support' },
-          { label: 'تتبع الطلب', action: 'track' },
+          { label: 'اطلب من المتجر', action: 'shop' },
+          { label: '🟢 واتساب', action: 'support' },
         ],
       },
     };
@@ -353,11 +536,11 @@ export default function ChatWidget() {
     const nameGreeting = order.customerName ? `حياك الله يا ${order.customerName} 🌿\n\n` : 'حياك الله 🌿\n\n';
     let body = `تم العثور على طلبك رقم ${order.orderNumber}.\n`;
 
-    if (order.proofStatus === 'CANCELLED') {
+if (order.proofStatus === 'CANCELLED') {
       return {
-        text: `${nameGreeting}${body}طلبك ظاهر لدينا كطلب ملغي. للتفاصيل يمكنك التواصل مع الدعم.`,
+        text: `${nameGreeting}${body}طلبك ظاهر لدينا كطلب ملغي. للتفاصيل，你可以 التواصل معنا عبر واتساب.`,
         links: [],
-        buttons: [{ label: 'التواصل مع الدعم', action: 'support' }],
+        buttons: [{ label: '🟢 واتساب', action: 'support' }],
       };
     }
 
@@ -372,7 +555,7 @@ export default function ChatWidget() {
       return {
         text: `${nameGreeting}${body}طلبك موجود لدينا، وجاري التحضير للتنفيذ.\nبعد اكتمال التنفيذ ورفع التوثيق، سيظهر لك زر مشاهدة التوثيق مباشرة.`,
         links: [],
-        buttons: [{ label: 'التواصل مع الدعم', action: 'support' }],
+        buttons: [{ label: '🟢 واتساب', action: 'support' }],
       };
     }
 
@@ -380,7 +563,7 @@ export default function ChatWidget() {
       return {
         text: `${nameGreeting}${body}طلبك قيد التنفيذ حاليًا، وسيتم تحديث التوثيق عند اكتماله.\nبعد اكتمال التنفيذ ورفع التوثيق، سيظهر لك زر مشاهدة التوثيق مباشرة.`,
         links: [],
-        buttons: [{ label: 'التواصل مع الدعم', action: 'support' }],
+        buttons: [{ label: '🟢 واتساب', action: 'support' }],
       };
     }
 
@@ -388,14 +571,14 @@ export default function ChatWidget() {
       return {
         text: `${nameGreeting}${body}تم تنفيذ الذبح، وجاري تجهيز التوثيق ورفع الملفات.\nسيظهر لك زر مشاهدة التوثيق عند اكتمال الرفع.`,
         links: [],
-        buttons: [{ label: 'التواصل مع الدعم', action: 'support' }],
+        buttons: [{ label: '🟢 واتساب', action: 'support' }],
       };
     }
 
     return {
       text: `${nameGreeting}${body}طلبك موجود لدينا، وجاري تجهيز التوثيق حاليًا.\nسيظهر لك رابط مشاهدة التوثيق فور اكتمال رفع الصور أو الفيديوهات.`,
       links: [],
-      buttons: [{ label: 'التواصل مع الدعم', action: 'support' }],
+      buttons: [{ label: '🟢 واتساب', action: 'support' }],
     };
   };
 
@@ -475,24 +658,24 @@ export default function ChatWidget() {
       let links: { label: string; url: string }[] = [];
       let buttons: { label: string; action: string }[] | undefined;
 
-      if (proofStatus === 'CANCELLED') {
-        responseText += 'طلبك ظاهر لدينا كطلب ملغي. للتفاصيل يمكنك التواصل مع الدعم.';
-        buttons = [{ label: 'التواصل مع الدعم', action: 'support' }];
+if (proofStatus === 'CANCELLED') {
+        responseText += 'طلبك ظاهر لدينا كطلب ملغي. للتفاصيل，你可以 التواصل معنا عبر واتساب.';
+        buttons = [{ label: '🟢 واتساب', action: 'support' }];
       } else if (hasMedia || proofStatus === 'READY' || proofStatus === 'VIEWED' || proofStatus === 'MEDIA_UPLOADED') {
         responseText += 'توثيق طلبك جاهز للمشاهدة ✅\nيمكنك الآن مشاهدة الصور والفيديوهات الخاصة بطلبك.';
         links = [{ label: 'مشاهدة التوثيق', url: proofUrl }];
       } else if (proofStatus === 'PENDING') {
         responseText += 'طلبك موجود لدينا، وجاري التحضير للتنفيذ.\nبعد اكتمال التنفيذ ورفع التوثيق، سيظهر لك زر مشاهدة التوثيق مباشرة.';
-        buttons = [{ label: 'التواصل مع الدعم', action: 'support' }];
+        buttons = [{ label: '🟢 واتساب', action: 'support' }];
       } else if (proofStatus === 'IN_PROGRESS') {
         responseText += 'طلبك قيد التنفيذ حاليًا، وسيتم تحديث التوثيق عند اكتماله.\nبعد اكتمال التنفيذ ورفع التوثيق، سيظهر لك زر مشاهدة التوثيق مباشرة.';
-        buttons = [{ label: 'التواصل مع الدعم', action: 'support' }];
+        buttons = [{ label: '🟢 واتساب', action: 'support' }];
       } else if (proofStatus === 'SLAUGHTERED') {
         responseText += 'تم تنفيذ الذبح، وجاري تجهيز التوثيق ورفع الملفات.\nسيظهر لك زر مشاهدة التوثيق عند اكتمال الرفع.';
-        buttons = [{ label: 'التواصل مع الدعم', action: 'support' }];
+        buttons = [{ label: '🟢 واتساب', action: 'support' }];
       } else {
         responseText += 'طلبك موجود لدينا، وجاري تجهيز التوثيق حاليًا.\nسيظهر لك رابط مشاهدة التوثيق فور اكتمال رفع الصور أو الفيديوهات.';
-        buttons = [{ label: 'التواصل مع الدعم', action: 'support' }];
+        buttons = [{ label: '🟢 واتساب', action: 'support' }];
       }
 
       setMessages(prev => [...prev, { role: 'bot', text: responseText, links, buttons }]);
@@ -528,12 +711,18 @@ export default function ChatWidget() {
       case 'support':
         handleButton('support');
         break;
-      case 'faq_company_type':
-      case 'faq_official_store':
-      case 'faq_execution_mechanism':
-      case 'faq_duration':
-      case 'faq_delivery':
-      case 'faq_cancellation':
+      case 'charity_or_commercial':
+      case 'official_store_trust':
+      case 'prices':
+      case 'how_to_order':
+      case 'execution_process':
+      case 'execution_duration':
+      case 'proof_delivery':
+      case 'edit_cancel':
+      case 'complaints':
+      case 'payment':
+      case 'services_available':
+      case 'location_execution':
         showFAQResponse(intent);
         break;
       case 'unknown':
