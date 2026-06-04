@@ -397,10 +397,11 @@ export default function ChatWidget() {
     setPopupVisible(false);
     setTimeout(() => setShowPopup(false), 200);
     sessionStorage.setItem('adahi_popup_shown', 'true');
+    sessionStorage.setItem('adahi_greeting_shown', 'true');
   };
 
   const showTrackingPrompt = () => {
-    setMessages([{
+    setMessages(prev => [...prev, {
       role: 'bot',
       text: 'فضلا أدخل رقم الطلب أو رقم الجوال أو البريد الإلكتروني المرتبط بالطلب.\nإذا كان رقمك خارج السعودية، اكتب مفتاح الدولة بدون + وبدون أصفار في البداية، مثل: 9715XXXXXXXX.',
       buttons: MAIN_OPTIONS,
@@ -411,7 +412,7 @@ export default function ChatWidget() {
   const showServiceResponse = (intent: string) => {
     const reply = SERVICE_REPLIES[intent];
     if (!reply) return;
-    setMessages([{
+    setMessages(prev => [...prev, {
       role: 'bot',
       text: reply.text,
       buttons: [
@@ -422,19 +423,32 @@ export default function ChatWidget() {
   };
 
   const showUnknown = () => {
-    setMessages([{
-      role: 'bot',
+    setMessages(prev => [...prev, { role: 'bot',
       text: 'أقدر أساعدك في متابعة الطلب، مشاهدة التوثيق، أو طلب خدمات أضحيتي من المتجر. اختر ما يناسبك من الخيارات التالية.',
       buttons: MAIN_OPTIONS,
     }]);
   };
 
-  const showGreeting = () => {
-    setMessages([{
-      role: 'bot',
-      text: 'وعليكم السلام ورحمة الله، حيّاك الله 🌿\nكيف نقدر نساعدك؟',
-      buttons: MAIN_OPTIONS,
-    }]);
+const showGreeting = () => {
+    const alreadyGreeted = sessionStorage.getItem('adahi_greeting_shown') === 'true';
+    if (alreadyGreeted) {
+      setMessages(prev => [...prev, {
+        role: 'bot',
+        text: 'حياك الله 🌿\nكيف نقدر نساعدك؟',
+        buttons: MAIN_OPTIONS,
+      }]);
+    } else {
+      setMessages(prev => [...prev, {
+        role: 'bot',
+        text: 'وعليكم السلام ورحمة الله 🌿\nحياك الله في أضحيتي، كيف نقدر نساعدك؟',
+        buttons: MAIN_OPTIONS,
+      }]);
+      sessionStorage.setItem('adahi_greeting_shown', 'true');
+    }
+    setIsOpen(true);
+    setPopupVisible(false);
+    setTimeout(() => setShowPopup(false), 200);
+    sessionStorage.setItem('adahi_popup_shown', 'true');
   };
 
   const showFAQResponse = (intent: string) => {
@@ -528,7 +542,7 @@ edit_cancel: {
 
     const response = faqResponses[intent];
     if (response) {
-      setMessages([{ role: 'bot', text: response.text, buttons: response.buttons }]);
+      setMessages(prev => [...prev, { role: 'bot', text: response.text, buttons: response.buttons }]);
     }
   };
 
@@ -583,8 +597,6 @@ if (order.proofStatus === 'CANCELLED') {
   };
 
   const performLookup = async (text: string) => {
-    setMessages(prev => [...prev, { role: 'user', text }]);
-    setInputValue('');
     setIsLoading(true);
     setAwaitingLookup(false);
 
@@ -684,55 +696,61 @@ if (proofStatus === 'CANCELLED') {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const text = inputValue.trim();
-    if (!text) return;
+    try {
+      const text = inputValue.trim();
+      if (!text) return;
 
-    const intent = detectIntent(text);
+      setMessages(prev => [...prev, { role: 'user', text }]);
+      setInputValue('');
 
-    if (intent === 'lookup_input' || awaitingLookup) {
-      performLookup(text);
-      return;
+      const intent = detectIntent(text);
+
+      if (intent === 'lookup_input' || awaitingLookup) {
+        performLookup(text);
+        return;
+      }
+
+      switch (intent) {
+        case 'greeting':
+          showGreeting();
+          break;
+        case 'order_tracking':
+          showTrackingPrompt();
+          break;
+        case 'service_udhiya':
+        case 'service_aqiqah':
+        case 'service_nadhr':
+        case 'service_kaffarah':
+        case 'store_order':
+          showServiceResponse(intent);
+          break;
+        case 'support':
+          handleButton('support');
+          break;
+        case 'charity_or_commercial':
+        case 'official_store_trust':
+        case 'prices':
+        case 'how_to_order':
+        case 'execution_process':
+        case 'execution_duration':
+        case 'proof_delivery':
+        case 'edit_cancel':
+        case 'complaints':
+        case 'payment':
+        case 'services_available':
+        case 'location_execution':
+          showFAQResponse(intent);
+          break;
+        case 'unknown':
+          showUnknown();
+          break;
+        default:
+          showUnknown();
+      }
+    } catch (error) {
+      console.error('CHAT_SEND_ERROR', error);
+      setMessages(prev => [...prev, { role: 'bot', text: 'حدث خطأ بسيط، حاول مرة أخرى.' }]);
     }
-
-    switch (intent) {
-      case 'greeting':
-        showGreeting();
-        break;
-      case 'order_tracking':
-        showTrackingPrompt();
-        break;
-      case 'service_udhiya':
-      case 'service_aqiqah':
-      case 'service_nadhr':
-      case 'service_kaffarah':
-      case 'store_order':
-        showServiceResponse(intent);
-        break;
-      case 'support':
-        handleButton('support');
-        break;
-      case 'charity_or_commercial':
-      case 'official_store_trust':
-      case 'prices':
-      case 'how_to_order':
-      case 'execution_process':
-      case 'execution_duration':
-      case 'proof_delivery':
-      case 'edit_cancel':
-      case 'complaints':
-      case 'payment':
-      case 'services_available':
-      case 'location_execution':
-        showFAQResponse(intent);
-        break;
-      case 'unknown':
-        showUnknown();
-        break;
-      default:
-        showUnknown();
-    }
-
-    setInputValue('');
   };
 
   const dismissPopup = () => {
