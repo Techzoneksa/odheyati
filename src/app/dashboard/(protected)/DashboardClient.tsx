@@ -193,7 +193,7 @@ export default function DashboardClient() {
       const queryString = params.toString();
       const url = queryString ? `/api/orders?${queryString}` : '/api/orders';
 
-      fetch(url)
+      fetch(url, { credentials: 'include' })
         .then(res => res.ok ? res.json() : Promise.reject(res.status))
         .then(data => {
           if (Array.isArray(data)) {
