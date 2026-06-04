@@ -537,14 +537,15 @@ function playSoftPing() {
     const gain = ctx.createGain();
     osc.connect(gain);
     gain.connect(ctx.destination);
-    osc.frequency.setValueAtTime(880, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.15);
-    gain.gain.setValueAtTime(0.12, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+    osc.frequency.setValueAtTime(1320, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.1);
+    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
     osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.2);
+    osc.stop(ctx.currentTime + 0.15);
+    sessionStorage.setItem('adahi_sound_played', 'true');
   } catch {
-    // silently ignore if audio fails
+    // silently ignore if audio fails due to autoplay policy
   }
 }
 
@@ -581,6 +582,17 @@ export default function ChatWidget() {
     }, 2000);
     return () => clearTimeout(timer);
   }, [isOpen]);
+
+  useEffect(() => {
+    if (sessionStorage.getItem('adahi_sound_played') === 'true') return;
+    const handler = () => {
+      playSoftPing();
+      document.removeEventListener('click', handler);
+      document.removeEventListener('touchstart', handler);
+    };
+    document.addEventListener('click', handler, { once: true });
+    document.addEventListener('touchstart', handler, { once: true });
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -1047,42 +1059,49 @@ if (proofStatus === 'CANCELLED') {
       <div className="fixed bottom-6 left-6 z-50">
         {showPopup && (
           <div
-            className={`absolute bottom-full left-0 mb-3 w-72 sm:w-80 rounded-xl shadow-lg overflow-hidden transition-all duration-200 ${popupVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}
-            style={{ backgroundColor: '#fefcf8', border: '2px solid #dca47c', direction: 'rtl' }}
+            className={`absolute bottom-full left-0 mb-3 w-72 sm:w-80 rounded-2xl shadow-xl overflow-hidden transition-all duration-300 ${popupVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}
+            style={{ backgroundColor: '#fff', direction: 'rtl', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}
           >
-            <div className="p-4">
-              <div className="flex items-start justify-between mb-2">
+            <div className="p-4" style={{ backgroundColor: '#075E54' }}>
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="text-base">🌿</span>
-                  <span className="font-semibold text-sm" style={{ color: '#973131' }}>حيّاك الله في أضحيتي 🌿</span>
+                  <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">
+                    <span className="text-base">🌿</span>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-white text-sm">حيّاك الله في أضحيتي 🌿</div>
+                    <div className="text-xs text-white/70">متصل الآن</div>
+                  </div>
                 </div>
-                <button onClick={dismissPopup} className="text-gray-400 hover:text-gray-600 p-1" aria-label="إغلاق">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <button onClick={dismissPopup} className="text-white/70 hover:text-white p-1" aria-label="إغلاق">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
-              <p className="text-xs text-gray-600 mb-3 leading-relaxed">
-                تحتاج تتابع طلبك أو تستفسر عن خدماتنا؟ أنا هنا أساعدك.
+            </div>
+            <div className="p-4" style={{ backgroundColor: '#ECE5DD' }}>
+              <p className="text-sm mb-4 leading-relaxed" style={{ color: '#111' }}>
+                أنا مساعد أضحيتي 🌿 أقدر أساعدك في متابعة طلبك، مشاهدة التوثيق، أو طلب خدماتنا.
               </p>
               <div className="flex gap-2">
                 <button
                   onClick={openChat}
-                  className="flex-1 px-3 py-2 rounded-lg text-white text-xs font-medium transition-colors hover:opacity-90"
-                  style={{ backgroundColor: '#973131' }}
+                  className="flex-1 px-3 py-2 rounded-lg text-white text-sm font-medium transition-colors hover:opacity-90"
+                  style={{ backgroundColor: '#25D366' }}
                 >
                   ابدأ المحادثة
                 </button>
                 <button
                   onClick={dismissPopup}
-                  className="px-3 py-2 rounded-lg text-xs font-medium transition-colors hover:opacity-80"
-                  style={{ backgroundColor: '#dca47c', color: '#973131' }}
+                  className="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:opacity-80"
+                  style={{ backgroundColor: '#ddd', color: '#555' }}
                 >
                   مو الحين
                 </button>
               </div>
             </div>
-            <div className="absolute -bottom-2 left-6 w-4 h-4 rotate-45" style={{ backgroundColor: '#dca47c' }} />
+            <div className="absolute -bottom-2 left-7 w-4 h-4 rotate-45" style={{ backgroundColor: '#ECE5DD' }} />
           </div>
         )}
         <button
@@ -1090,27 +1109,28 @@ if (proofStatus === 'CANCELLED') {
           className="relative group"
           aria-label="مساعد أضحيتي"
         >
-          <span className="absolute bottom-full left-0 mb-2 px-3 py-1 bg-gray-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+          <span className="absolute bottom-full left-0 mb-2 px-3 py-1.5 text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none" style={{ backgroundColor: '#333', color: '#fff', marginBottom: '8px' }}>
             مساعد أضحيتي
           </span>
-          <span className="flex items-center justify-center w-14 h-14 rounded-full shadow-lg pulse-animation" style={{ backgroundColor: '#973131' }}>
-            <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
+          <span className="flex items-center justify-center w-16 h-16 rounded-full shadow-lg whatsapp-pulse" style={{ backgroundColor: '#25D366' }}>
+            <img src="/icons/whatsapp-svgrepo-com.svg" alt="واتساب" className="w-8 h-8" />
           </span>
           <style>{`
-            @keyframes pulse-ring {
-              0% { transform: scale(1); opacity: 1; }
-              100% { transform: scale(1.5); opacity: 0; }
+            @keyframes whatsapp-pulse-ring {
+              0% { transform: scale(1); opacity: 0.4; }
+              100% { transform: scale(1.6); opacity: 0; }
             }
-            .pulse-animation::before {
+            .whatsapp-pulse::before {
               content: '';
               position: absolute;
               inset: 0;
               border-radius: 50%;
-              background-color: #973131;
-              animation: pulse-ring 1.5s ease-out infinite;
-              z-index: -1;
+              background-color: #25D366;
+              animation: whatsapp-pulse-ring 1.8s ease-out infinite;
+            }
+            .whatsapp-pulse:hover::before {
+              animation: none;
+              opacity: 0.3;
             }
           `}</style>
         </button>
@@ -1120,19 +1140,31 @@ if (proofStatus === 'CANCELLED') {
 
   return (
     <div className="fixed bottom-6 left-6 z-50 w-80 sm:w-96" style={{ direction: 'rtl' }}>
-      <div className="rounded-xl shadow-2xl overflow-hidden" style={{ backgroundColor: '#fefcf8', border: '2px solid #dca47c' }}>
-        <div className="p-3 flex items-center justify-between" style={{ backgroundColor: '#973131' }}>
-          <div className="flex items-center gap-2">
-            <span className="text-lg">🌿</span>
-            <span className="font-semibold text-white">مساعد أضحيتي</span>
+      <div className="rounded-2xl shadow-2xl overflow-hidden" style={{ backgroundColor: '#ECE5DD' }}>
+        <div className="p-3 flex items-center justify-between" style={{ backgroundColor: '#075E54' }}>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setIsOpen(false)} className="text-white/80 hover:text-white p-1" aria-label="رجوع">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">
+                <span className="text-sm">🌿</span>
+              </div>
+              <div>
+                <div className="font-semibold text-white text-sm">مساعد أضحيتي</div>
+                <div className="text-xs text-white/70">نحن هنا لمساعدتك</div>
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setIsMinimized(!isMinimized)} className="text-white hover:text-gray-200 p-1" aria-label="تصغير">
+          <div className="flex items-center gap-1">
+            <button onClick={() => setIsMinimized(!isMinimized)} className="text-white/80 hover:text-white p-1" aria-label="تصغير">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
               </svg>
             </button>
-            <button onClick={() => setIsOpen(false)} className="text-white hover:text-gray-200 p-1" aria-label="إغلاق">
+            <button onClick={() => setIsOpen(false)} className="text-white/80 hover:text-white p-1" aria-label="إغلاق">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -1142,15 +1174,16 @@ if (proofStatus === 'CANCELLED') {
 
         {!isMinimized && (
           <>
-            <div className="h-72 overflow-y-auto p-4 space-y-3">
+            <div className="h-72 overflow-y-auto p-3 space-y-2" style={{ backgroundColor: '#ECE5DD' }}>
               {messages.map((msg, i) => (
                 <div key={i} className={`flex ${msg.role === 'user' ? 'justify-start' : 'justify-end'}`}>
-                  <div className={`max-w-[85%] rounded-lg p-3 ${msg.role === 'user' ? 'bg-gray-100 text-gray-800' : 'text-white'}`} style={msg.role === 'bot' ? { backgroundColor: '#973131' } : {}}>
+                  <div className={`max-w-[85%] rounded-2xl p-3 shadow-sm ${msg.role === 'user' ? 'rounded-br-md' : 'rounded-bl-md'}`}
+                    style={msg.role === 'user' ? { backgroundColor: '#DCF8C6', color: '#111' } : { backgroundColor: '#fff', color: '#111' }}>
                     <p className="text-sm leading-relaxed whitespace-pre-line">{msg.text}</p>
                     {msg.buttons && (
                       <div className="mt-3 flex flex-wrap gap-2">
                         {msg.buttons.map((btn, j) => (
-                          <button key={j} onClick={() => handleButton(btn.action)} className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors" style={{ backgroundColor: '#dca47c', color: '#973131' }}>
+                          <button key={j} onClick={() => handleButton(btn.action)} className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors" style={{ backgroundColor: '#25D366', color: '#fff' }}>
                             {btn.label}
                           </button>
                         ))}
@@ -1159,7 +1192,7 @@ if (proofStatus === 'CANCELLED') {
                     {msg.links && (
                       <div className="mt-3">
                         {msg.links.map((lnk, j) => (
-                          <a key={j} href={lnk.url} target="_blank" rel="noopener noreferrer" className="inline-block text-xs px-3 py-1.5 rounded-full font-medium text-white transition-colors" style={{ backgroundColor: '#917e69' }}>
+                          <a key={j} href={lnk.url} target="_blank" rel="noopener noreferrer" className="inline-block text-xs px-3 py-1.5 rounded-full font-medium text-white transition-colors" style={{ backgroundColor: '#128C7E' }}>
                             {lnk.label}
                           </a>
                         ))}
@@ -1168,10 +1201,10 @@ if (proofStatus === 'CANCELLED') {
                     {msg.serviceCards && (
                       <div className="mt-3 grid grid-cols-2 gap-2">
                         {msg.serviceCards.map((card, j) => (
-                          <a key={j} href={card.url} target="_blank" rel="noopener noreferrer" className="block rounded-lg p-3 text-white transition-colors" style={{ backgroundColor: '#dca47c', textDecoration: 'none' }}>
-                            <div className="text-sm font-semibold mb-1" style={{ color: '#973131' }}>{card.title}</div>
+                          <a key={j} href={card.url} target="_blank" rel="noopener noreferrer" className="block rounded-xl p-3 transition-colors" style={{ backgroundColor: '#fff', textDecoration: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                            <div className="text-sm font-semibold mb-1" style={{ color: '#075E54' }}>{card.title}</div>
                             <div className="text-xs mb-2 leading-relaxed" style={{ color: '#555' }}>{card.description}</div>
-                            <div className="text-xs font-medium text-center py-1 rounded-full text-white" style={{ backgroundColor: '#973131' }}>{card.buttonLabel}</div>
+                            <div className="text-xs font-medium text-center py-1.5 rounded-full text-white" style={{ backgroundColor: '#25D366' }}>{card.buttonLabel}</div>
                           </a>
                         ))}
                       </div>
@@ -1181,11 +1214,11 @@ if (proofStatus === 'CANCELLED') {
               ))}
               {isLoading && (
                 <div className="flex justify-end">
-                  <div className="rounded-lg p-3" style={{ backgroundColor: '#973131' }}>
+                  <div className="rounded-2xl p-3" style={{ backgroundColor: '#fff' }}>
                     <div className="flex gap-1">
-                      <span className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <span className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <span className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                     </div>
                   </div>
                 </div>
@@ -1193,21 +1226,21 @@ if (proofStatus === 'CANCELLED') {
               <div ref={messagesEndRef} />
             </div>
 
-            <form onSubmit={handleSubmit} className="p-3 border-t" style={{ borderColor: '#dca47c' }}>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={inputValue}
-                  onChange={e => setInputValue(e.target.value)}
-                  placeholder="اكتب رسالة..."
-                  className="flex-1 px-3 py-2 rounded-lg text-sm text-right"
-                  style={{ backgroundColor: '#fff', border: '1px solid #dca47c', color: '#333' }}
-                  dir="rtl"
-                />
-                <button type="submit" className="px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors" style={{ backgroundColor: '#973131' }} disabled={isLoading}>
-                  إرسال
-                </button>
-              </div>
+            <form onSubmit={handleSubmit} className="p-2 flex gap-2 items-center" style={{ backgroundColor: '#F0F2F5' }}>
+              <input
+                type="text"
+                value={inputValue}
+                onChange={e => setInputValue(e.target.value)}
+                placeholder="اكتب رسالة..."
+                className="flex-1 px-4 py-2.5 rounded-full text-sm text-right"
+                style={{ backgroundColor: '#fff', border: 'none', color: '#333', outline: 'none' }}
+                dir="rtl"
+              />
+              <button type="submit" className="w-10 h-10 rounded-full flex items-center justify-center transition-colors" style={{ backgroundColor: '#25D366' }} disabled={isLoading}>
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+              </button>
             </form>
           </>
         )}
