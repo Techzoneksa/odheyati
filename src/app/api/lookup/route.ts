@@ -62,7 +62,10 @@ export async function POST(request: Request) {
 
       const orders = await prisma.order.findMany({
         where: {
-          customerEmail: email,
+          customerEmail: {
+            contains: email.trim().toLowerCase(),
+            mode: 'insensitive',
+          },
           proofStatus: {
             not: 'CANCELLED',
           },
@@ -75,6 +78,7 @@ export async function POST(request: Request) {
           createdAt: true,
         },
         orderBy: { createdAt: 'desc' },
+        take: 10,
       });
 
       if (orders.length === 0) {
