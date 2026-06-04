@@ -111,21 +111,44 @@ export default function DashboardClient() {
     if (emailSearch) params.set('email', emailSearch.trim().toLowerCase());
     if (customerNameSearch) params.set('customerName', customerNameSearch.trim());
 
-    const res = await fetch(`/api/orders?${params}`, { credentials: 'include' });
+    const url = `/api/orders?${params}`;
+    console.log('DASHBOARD_SEARCH_URL:', url);
+    console.log('DASHBOARD_SEARCH_STATUS: fetching...');
+
+    let res;
+    try {
+      res = await fetch(url, { credentials: 'include' });
+    } catch (fetchError) {
+      console.error('DASHBOARD_FETCH_ERROR:', fetchError);
+      setLoading(false);
+      return;
+    }
+
+    console.log('DASHBOARD_SEARCH_STATUS:', res.status, res.statusText);
+
     if (res.ok) {
-      const data = await res.json();
-      setOrders(Array.isArray(data) ? data : (data.orders ?? []));
-      setCurrentPage(data.page || 1);
-      setTotalPages(data.totalPages || 1);
+      try {
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : (data.orders ?? []);
+        console.log('DASHBOARD_SEARCH_COUNT:', list.length, 'total:', data.total);
+        setOrders(list);
+        setCurrentPage(data.page || 1);
+        setTotalPages(data.totalPages || 1);
+      } catch (parseError) {
+        console.error('DASHBOARD_PARSE_ERROR:', parseError);
+        setOrders([]);
+      }
     } else {
+      console.error('DASHBOARD_RESPONSE_ERROR:', res.status, res.statusText);
       setOrders([]);
     }
     setLoading(false);
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    await fetchOrders(1);
+    console.log('HANDLE_SUBMIT_CALLED');
+    fetchOrders(1);
   }
 
   function handleClear() {
