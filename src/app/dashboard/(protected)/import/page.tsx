@@ -8,6 +8,7 @@ interface OrderRow {
   sallaStatus: string;
   customerName: string;
   customerMobile: string;
+  customerEmail: string;
   amount: string;
 }
 
@@ -80,12 +81,17 @@ export default function ImportPage() {
         const sheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as string[][];
 
-        const headers = jsonData[0].map(h => h.toString().trim());
+        const headerRowIndex = (jsonData[0] && jsonData[0].some(h => h && h.toString().includes('رقم الطلب')))
+          ? 0
+          : 1;
+
+        const headers = jsonData[headerRowIndex].map(h => h.toString().trim());
 
         const orderCol = headers.findIndex(h => h.includes('رقم الطلب') || h.includes('order'));
         const statusCol = headers.findIndex(h => h.includes('حالة') || h.includes('status'));
         const nameCol = headers.findIndex(h => h.includes('اسم') || h.includes('name'));
         const mobileCol = headers.findIndex(h => h.includes('جوال') || h.includes('mobile') || h.includes('phone'));
+        const emailCol = headers.findIndex(h => h.includes('البريد الإلكتروني') || h.includes('customerEmail') || h.includes('email'));
         const amountCol = headers.findIndex(h => h.includes('مبلغ') || h.includes('amount'));
 
         if (orderCol === -1 || nameCol === -1) {
@@ -94,14 +100,16 @@ export default function ImportPage() {
         }
 
         const rows: OrderRow[] = [];
-        for (let i = 1; i < jsonData.length && rows.length < 20; i++) {
+        const dataStartRow = headerRowIndex + 1;
+        for (let i = dataStartRow; i < jsonData.length && rows.length < 20; i++) {
           const row = jsonData[i];
           if (row[orderCol]) {
             rows.push({
               orderNumber: String(row[orderCol] || '').trim(),
               sallaStatus: statusCol !== -1 ? String(row[statusCol] || '').trim() : '',
               customerName: String(row[nameCol] || '').trim(),
-              customerMobile: String(row[mobileCol] || '').trim(),
+              customerMobile: mobileCol !== -1 ? String(row[mobileCol] || '').trim() : '',
+              customerEmail: emailCol !== -1 ? String(row[emailCol] || '').trim() : '',
               amount: amountCol !== -1 ? String(row[amountCol] || '').trim() : '',
             });
           }
@@ -293,6 +301,7 @@ export default function ImportPage() {
                     <th className="text-right px-3 py-2">رقم الطلب</th>
                     <th className="text-right px-3 py-2">العميل</th>
                     <th className="text-right px-3 py-2">الجوال</th>
+                    <th className="text-right px-3 py-2">البريد</th>
                     <th className="text-right px-3 py-2">الحالة</th>
                     <th className="text-right px-3 py-2">المبلغ</th>
                   </tr>
@@ -303,6 +312,7 @@ export default function ImportPage() {
                       <td className="px-3 py-2 font-mono" dir="ltr">{row.orderNumber}</td>
                       <td className="px-3 py-2">{row.customerName}</td>
                       <td className="px-3 py-2 font-mono" dir="ltr">{row.customerMobile}</td>
+                      <td className="px-3 py-2 text-xs" dir="ltr">{row.customerEmail}</td>
                       <td className="px-3 py-2">{row.sallaStatus}</td>
                       <td className="px-3 py-2">{row.amount}</td>
                     </tr>
