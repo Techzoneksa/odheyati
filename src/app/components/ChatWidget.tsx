@@ -151,14 +151,19 @@ function detectIntent(text: string): Intent {
     lower.includes('ابي اطلب') || lower.includes('أبي أطلب') ||
     lower.includes('ابغى اطلب') || lower.includes('أبغى أطلب') ||
     lower.includes('اريد اطلب') || lower.includes('أريد أطلب') ||
-    lower.includes('طريقة الطلب') || lower.includes('كيف اسوي طلب') || lower.includes('كيف أسوي طلب') ||
     lower.includes('كيف اشتري') || lower.includes('كيف أشتري') ||
+    lower.includes('كيف الشراء') || lower.includes('كيف الطلب') ||
+    lower.includes('طريقة الطلب') || lower.includes('طريقة الشراء') ||
+    lower.includes('كيف اسوي طلب') || lower.includes('كيف أسوي طلب') ||
+    lower.includes('ابغى اشتري') || lower.includes('اريد اشتري') ||
     lower.includes('الطلب من وين') || lower.includes('من وين اطلب') ||
     lower.includes('رابط الطلب') || lower.includes('رابط المتجر') ||
     lower.includes('ادخل المتجر') || lower.includes('وين المتجر') ||
     lower.includes('اطلب الآن') || lower.includes('اطلب الان') ||
     lower.includes('طلب خدمة') ||
-    lower.includes('وش خدماتكم') || lower.includes('وش خدماتكم') ||
+    lower.includes('وش خدماتكم') || lower.includes('وش الخدمات') ||
+    lower.includes('ايش الخدمات') || lower.includes('وش خدمات') ||
+    lower.includes('ماهي الخدمات') || lower.includes('ما هي الخدمات') ||
     lower.includes('الخدمات') || lower.includes('الخدمة') ||
     lower.includes('الخدمة من وين') || lower.includes('خدم من وين') ||
     lower.includes('أبغى خدمة') || lower.includes('أبي خدمة') ||
@@ -167,7 +172,11 @@ function detectIntent(text: string): Intent {
     lower.includes('أبغى نذر') || lower.includes('أبي نذر') ||
     lower.includes('أبغى كفارة') || lower.includes('أبي كفارة') ||
     lower.includes('ابغى اضحية') || lower.includes('ابي اضحية') ||
-    lower.includes('طلب من المتجر') || lower.includes('اطلب من المتجر')) {
+    lower.includes('طلب من المتجر') || lower.includes('اطلب من المتجر') ||
+    lower.includes('عندكم أضحية') || lower.includes('عندكم اضحية') ||
+    lower.includes('عندكم عقيقة') || lower.includes('عندكم نذر') || lower.includes('عندكم كفارة') ||
+    cleanText === 'اطلب' || cleanText === 'الطلب' ||
+    cleanText === 'شراء' || cleanText === 'الشراء') {
     return 'show_service_cards';
   }
 
