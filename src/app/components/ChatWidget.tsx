@@ -33,12 +33,29 @@ const WELCOME_MESSAGE: Message = {
   ],
 };
 
+function playSoftPing() {
+  try {
+    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.2);
+  } catch {
+    // silently ignore if audio fails
+  }
+}
+
 export default function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
-  const [inputValue, setInputValue] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [showPopup, setShowPopup] = useState(false);
+  const [popupVisible, setPopupVisible] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -48,11 +65,29 @@ export default function ChatWidget() {
 
   useEffect(() => {
     localStorage.setItem('adahi_chat_open', isOpen.toString());
+    if (isOpen) {
+      setShowPopup(false);
+      sessionStorage.setItem('adahi_popup_shown', 'true');
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen || sessionStorage.getItem('adahi_popup_shown') === 'true') return;
+    const timer = setTimeout(() => {
+      setShowPopup(true);
+      setTimeout(() => setPopupVisible(true), 30);
+      playSoftPing();
+    }, 2000);
+    return () => clearTimeout(timer);
   }, [isOpen]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, []);
+
+  const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
+  const [inputValue, setInputValue] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const sendMessage = async (text: string) => {
     const userMsg: Message = { role: 'user', text };
@@ -217,37 +252,92 @@ export default function ChatWidget() {
     }
   };
 
+  const dismissPopup = () => {
+    setPopupVisible(false);
+    setTimeout(() => setShowPopup(false), 200);
+    sessionStorage.setItem('adahi_popup_shown', 'true');
+  };
+
+  const openFromPopup = () => {
+    setIsOpen(true);
+    setPopupVisible(false);
+    setTimeout(() => setShowPopup(false), 200);
+    sessionStorage.setItem('adahi_popup_shown', 'true');
+  };
+
   if (!isOpen) {
     return (
-      <button
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 left-6 z-50 group"
-        aria-label="مساعد أضحيتي"
-      >
-        <span className="absolute bottom-full left-0 mb-2 px-3 py-1 bg-gray-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-          مساعد أضحيتي
-        </span>
-        <span className="flex items-center justify-center w-14 h-14 rounded-full shadow-lg pulse-animation" style={{ backgroundColor: '#973131' }}>
-          <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
-        </span>
-        <style>{`
-          @keyframes pulse-ring {
-            0% { transform: scale(1); opacity: 1; }
-            100% { transform: scale(1.5); opacity: 0; }
-          }
-          .pulse-animation::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            border-radius: 50%;
-            background-color: #973131;
-            animation: pulse-ring 1.5s ease-out infinite;
-            z-index: -1;
-          }
-        `}</style>
-      </button>
+      <div className="fixed bottom-6 left-6 z-50">
+        {showPopup && (
+          <div
+            className={`absolute bottom-full left-0 mb-3 w-72 sm:w-80 rounded-xl shadow-lg overflow-hidden transition-all duration-200 ${popupVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}
+            style={{ backgroundColor: '#fefcf8', border: '2px solid #dca47c', direction: 'rtl' }}
+          >
+            <div className="p-4">
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">🌿</span>
+                  <span className="font-semibold text-sm" style={{ color: '#973131' }}>هل تريد متابعة طلبك؟</span>
+                </div>
+                <button onClick={dismissPopup} className="text-gray-400 hover:text-gray-600 p-1" aria-label="إغلاق">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <p className="text-xs text-gray-600 mb-3 leading-relaxed">
+                اكتب رقم الطلب أو الجوال أو الإيميل وسأعرض لك حالة التوثيق مباشرة.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={openFromPopup}
+                  className="flex-1 px-3 py-2 rounded-lg text-white text-xs font-medium transition-colors hover:opacity-90"
+                  style={{ backgroundColor: '#973131' }}
+                >
+                  تتبع طلبي
+                </button>
+                <button
+                  onClick={dismissPopup}
+                  className="px-3 py-2 rounded-lg text-xs font-medium transition-colors hover:opacity-80"
+                  style={{ backgroundColor: '#dca47c', color: '#973131' }}
+                >
+                  لاحقًا
+                </button>
+              </div>
+            </div>
+            <div className="absolute -bottom-2 left-6 w-4 h-4 rotate-45" style={{ backgroundColor: '#dca47c' }} />
+          </div>
+        )}
+        <button
+          onClick={() => setIsOpen(true)}
+          className="relative group"
+          aria-label="مساعد أضحيتي"
+        >
+          <span className="absolute bottom-full left-0 mb-2 px-3 py-1 bg-gray-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+            مساعد أضحيتي
+          </span>
+          <span className="flex items-center justify-center w-14 h-14 rounded-full shadow-lg pulse-animation" style={{ backgroundColor: '#973131' }}>
+            <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+          </span>
+          <style>{`
+            @keyframes pulse-ring {
+              0% { transform: scale(1); opacity: 1; }
+              100% { transform: scale(1.5); opacity: 0; }
+            }
+            .pulse-animation::before {
+              content: '';
+              position: absolute;
+              inset: 0;
+              border-radius: 50%;
+              background-color: #973131;
+              animation: pulse-ring 1.5s ease-out infinite;
+              z-index: -1;
+            }
+          `}</style>
+        </button>
+      </div>
     );
   }
 
