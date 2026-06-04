@@ -248,7 +248,7 @@ export default function DashboardClient() {
     const url = queryString ? `/api/orders?${queryString}` : '/api/orders';
 
     try {
-      const res = await fetch(url);
+      const res = await fetch(url, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) {
