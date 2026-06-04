@@ -55,6 +55,7 @@ type Intent =
   | 'delivery_inside_saudi'
   | 'execution_location'
   | 'meat_delivery_or_receiving'
+  | 'small_talk'
   | 'unknown';
 
 function toDigits(str: string): string {
@@ -91,10 +92,28 @@ function detectIntent(text: string): Intent {
     'صباح الخير', 'مساء الخير',
     'حياك', 'حياك الله', 'حيكم',
     'الو', 'هاي', 'hoy', 'hi', 'hello',
-    'كيفك', 'كيف حالك', 'عاملين ايه', 'الوو',
+    'الوو',
   ];
   if (exactGreetings.some(p => cleanText === p || cleanText.startsWith(p + ' '))) {
     return 'greeting';
+  }
+
+  if (lower.includes('كيف الحال') || lower.includes('كيف حالك') ||
+    lower.includes('كيفك') || lower.includes('كيفكم') ||
+    lower.includes('وش اخبارك') || lower.includes('وش أخبارك') ||
+    lower.includes('ايش اخبارك') || lower.includes('إيش أخبارك') ||
+    lower.includes('اخبارك') || lower.includes('أخبارك') ||
+    lower.includes('علومك') || lower.includes('وش علومك') ||
+    lower.includes('طمني عنك') ||
+    lower.includes('عامل ايه') || lower.includes('عاملين ايه') ||
+    lower.includes('كيف الأمور') || lower.includes('كيف الامور') ||
+    lower.includes('كيف الوضع') ||
+    lower.includes('تمام') || lower.includes('تمام؟') ||
+    lower.includes('الحمد لله') ||
+    lower.includes('هلا كيفك') || lower.includes('مرحبا كيفك') ||
+    cleanText === 'كيفك' || cleanText === 'كيف الحال' || cleanText === 'كيف حالك' ||
+    cleanText === 'بخير' || cleanText === 'الحمد لله') {
+    return 'small_talk';
   }
 
   if (lower.includes('جهة خيرية') || lower.includes('خيرية') || lower.includes('جمعية') ||
@@ -695,6 +714,18 @@ const showGreeting = () => {
     sessionStorage.setItem('adahi_popup_shown', 'true');
   };
 
+  const showSmallTalk = () => {
+    setMessages(prev => [...prev, {
+      role: 'bot',
+      text: 'بخير ونعمة، حيّاك الله في أضحيتي 🌿\nكيف نقدر نساعدك اليوم؟',
+      buttons: MAIN_OPTIONS,
+    }]);
+    setIsOpen(true);
+    setPopupVisible(false);
+    setTimeout(() => setShowPopup(false), 200);
+    sessionStorage.setItem('adahi_popup_shown', 'true');
+  };
+
   const showFAQResponse = (intent: string) => {
     const faqResponses: Record<string, { text: string; buttons: { label: string; action: string }[] }> = {
       charity_or_commercial: {
@@ -1035,6 +1066,9 @@ if (proofStatus === 'CANCELLED') {
         case 'execution_location':
         case 'meat_delivery_or_receiving':
           showFAQResponse(intent);
+          break;
+        case 'small_talk':
+          showSmallTalk();
           break;
         case 'unknown':
           showUnknown();
