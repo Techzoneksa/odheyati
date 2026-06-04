@@ -385,7 +385,8 @@ function detectIntent(text: string): Intent {
     return 'distribution_country';
   }
 
-  if (lower.includes('توصيل داخل المملكة') || lower.includes('توصيل داخل السعودية') ||
+  if (lower.includes('توصيل') ||
+    lower.includes('توصيل داخل المملكة') || lower.includes('توصيل داخل السعودية') ||
     lower.includes('توصيل بالسعودية') || lower.includes('توصيل للمملكة') ||
     lower.includes('هل يوجد توصيل') || lower.includes('هل عندكم توصيل') || lower.includes('في توصيل') || lower.includes('فيه توصيل') ||
     lower.includes('توصلون') || lower.includes('توصلون داخل السعودية') || lower.includes('توصلون داخل المملكة') ||
@@ -1270,10 +1271,8 @@ if (proofStatus === 'CANCELLED') {
                 style={{ backgroundColor: '#fff', border: 'none', color: '#333', outline: 'none', boxSizing: 'border-box' }}
                 dir="rtl"
               />
-              <button type="submit" className="w-10 h-10 rounded-full flex items-center justify-center transition-colors shrink-0" style={{ backgroundColor: '#25D366' }} disabled={isLoading}>
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                </svg>
+              <button type="submit" className="px-4 py-2 rounded-full text-white text-sm font-medium transition-colors shrink-0" style={{ backgroundColor: '#25D366' }} disabled={isLoading}>
+                إرسال
               </button>
             </form>
           </>
