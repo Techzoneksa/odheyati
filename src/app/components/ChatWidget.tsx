@@ -1056,11 +1056,11 @@ if (proofStatus === 'CANCELLED') {
 
   if (!isOpen) {
     return (
-      <div className="fixed bottom-6 left-6 z-50">
+      <div className="fixed z-50" style={{ left: '16px', bottom: '24px' }}>
         {showPopup && (
           <div
-            className={`absolute bottom-full left-0 mb-3 w-72 sm:w-80 rounded-2xl shadow-xl overflow-hidden transition-all duration-300 ${popupVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}
-            style={{ backgroundColor: '#fff', direction: 'rtl', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}
+            className={`absolute bottom-full mb-3 rounded-2xl shadow-xl overflow-hidden transition-all duration-300 ${popupVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}
+            style={{ backgroundColor: '#fff', direction: 'rtl', boxShadow: '0 4px 20px rgba(0,0,0,0.15)', right: '0', left: '0', maxWidth: 'calc(100vw - 32px)', width: '288px' }}
           >
             <div className="p-4" style={{ backgroundColor: '#075E54' }}>
               <div className="flex items-center justify-between">
@@ -1109,11 +1109,11 @@ if (proofStatus === 'CANCELLED') {
           className="relative group"
           aria-label="مساعد أضحيتي"
         >
-          <span className="absolute bottom-full left-0 mb-2 px-3 py-1.5 text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none" style={{ backgroundColor: '#333', color: '#fff', marginBottom: '8px' }}>
+          <span className="absolute bottom-full mb-2 px-3 py-1.5 text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none" style={{ backgroundColor: '#333', color: '#fff', marginBottom: '8px', right: '0' }}>
             مساعد أضحيتي
           </span>
-          <span className="flex items-center justify-center w-16 h-16 rounded-full shadow-lg whatsapp-pulse" style={{ backgroundColor: '#25D366' }}>
-            <img src="/icons/whatsapp-svgrepo-com.svg" alt="واتساب" className="w-8 h-8" />
+          <span className="flex items-center justify-center rounded-full shadow-lg whatsapp-pulse" style={{ backgroundColor: '#25D366', width: '56px', height: '56px' }}>
+            <img src="/icons/whatsapp-svgrepo-com.svg" alt="واتساب" className="w-7 h-7" />
           </span>
           <style>{`
             @keyframes whatsapp-pulse-ring {
@@ -1139,9 +1139,9 @@ if (proofStatus === 'CANCELLED') {
   }
 
   return (
-    <div className="fixed bottom-6 left-6 z-50 w-80 sm:w-96" style={{ direction: 'rtl' }}>
-      <div className="rounded-2xl shadow-2xl overflow-hidden" style={{ backgroundColor: '#ECE5DD' }}>
-        <div className="p-3 flex items-center justify-between" style={{ backgroundColor: '#075E54' }}>
+    <div className="fixed z-50 overflow-hidden" style={{ direction: 'rtl', left: '16px', right: '16px', bottom: '24px', maxWidth: '420px', width: 'calc(100vw - 32px)' }}>
+      <div className="rounded-2xl shadow-2xl overflow-hidden" style={{ backgroundColor: '#ECE5DD', maxHeight: 'min(72vh, 640px)', display: 'flex', flexDirection: 'column' }}>
+        <div className="p-3 flex items-center justify-between shrink-0" style={{ backgroundColor: '#075E54' }}>
           <div className="flex items-center gap-3">
             <button onClick={() => setIsOpen(false)} className="text-white/80 hover:text-white p-1" aria-label="رجوع">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1174,16 +1174,16 @@ if (proofStatus === 'CANCELLED') {
 
         {!isMinimized && (
           <>
-            <div className="h-72 overflow-y-auto p-3 space-y-2" style={{ backgroundColor: '#ECE5DD' }}>
+            <div className="flex-1 overflow-y-auto p-3 space-y-2" style={{ backgroundColor: '#ECE5DD', minHeight: '0', maxHeight: 'min(58vh, 500px)' }}>
               {messages.map((msg, i) => (
                 <div key={i} className={`flex ${msg.role === 'user' ? 'justify-start' : 'justify-end'}`}>
                   <div className={`max-w-[85%] rounded-2xl p-3 shadow-sm ${msg.role === 'user' ? 'rounded-br-md' : 'rounded-bl-md'}`}
-                    style={msg.role === 'user' ? { backgroundColor: '#DCF8C6', color: '#111' } : { backgroundColor: '#fff', color: '#111' }}>
-                    <p className="text-sm leading-relaxed whitespace-pre-line">{msg.text}</p>
+                    style={msg.role === 'user' ? { backgroundColor: '#DCF8C6', color: '#111', wordBreak: 'break-word', overflowWrap: 'anywhere' } : { backgroundColor: '#fff', color: '#111', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                    <p className="text-sm leading-relaxed whitespace-pre-line break-words">{msg.text}</p>
                     {msg.buttons && (
                       <div className="mt-3 flex flex-wrap gap-2">
                         {msg.buttons.map((btn, j) => (
-                          <button key={j} onClick={() => handleButton(btn.action)} className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors" style={{ backgroundColor: '#25D366', color: '#fff' }}>
+                          <button key={j} onClick={() => handleButton(btn.action)} className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors max-w-full" style={{ backgroundColor: '#25D366', color: '#fff', whiteSpace: 'normal', wordBreak: 'break-word' }}>
                             {btn.label}
                           </button>
                         ))}
@@ -1199,11 +1199,11 @@ if (proofStatus === 'CANCELLED') {
                       </div>
                     )}
                     {msg.serviceCards && (
-                      <div className="mt-3 grid grid-cols-2 gap-2">
+                      <div className="mt-3 grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))' }}>
                         {msg.serviceCards.map((card, j) => (
-                          <a key={j} href={card.url} target="_blank" rel="noopener noreferrer" className="block rounded-xl p-3 transition-colors" style={{ backgroundColor: '#fff', textDecoration: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                          <a key={j} href={card.url} target="_blank" rel="noopener noreferrer" className="block rounded-xl p-3 transition-colors" style={{ backgroundColor: '#fff', textDecoration: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden', wordBreak: 'break-word' }}>
                             <div className="text-sm font-semibold mb-1" style={{ color: '#075E54' }}>{card.title}</div>
-                            <div className="text-xs mb-2 leading-relaxed" style={{ color: '#555' }}>{card.description}</div>
+                            <div className="text-xs mb-2 leading-relaxed" style={{ color: '#555', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{card.description}</div>
                             <div className="text-xs font-medium text-center py-1.5 rounded-full text-white" style={{ backgroundColor: '#25D366' }}>{card.buttonLabel}</div>
                           </a>
                         ))}
@@ -1226,17 +1226,17 @@ if (proofStatus === 'CANCELLED') {
               <div ref={messagesEndRef} />
             </div>
 
-            <form onSubmit={handleSubmit} className="p-2 flex gap-2 items-center" style={{ backgroundColor: '#F0F2F5' }}>
+            <form onSubmit={handleSubmit} className="p-2 flex gap-2 items-center shrink-0" style={{ backgroundColor: '#F0F2F5' }}>
               <input
                 type="text"
                 value={inputValue}
                 onChange={e => setInputValue(e.target.value)}
                 placeholder="اكتب رسالة..."
-                className="flex-1 px-4 py-2.5 rounded-full text-sm text-right"
-                style={{ backgroundColor: '#fff', border: 'none', color: '#333', outline: 'none' }}
+                className="flex-1 px-4 py-2.5 rounded-full text-sm text-right min-w-0"
+                style={{ backgroundColor: '#fff', border: 'none', color: '#333', outline: 'none', boxSizing: 'border-box' }}
                 dir="rtl"
               />
-              <button type="submit" className="w-10 h-10 rounded-full flex items-center justify-center transition-colors" style={{ backgroundColor: '#25D366' }} disabled={isLoading}>
+              <button type="submit" className="w-10 h-10 rounded-full flex items-center justify-center transition-colors shrink-0" style={{ backgroundColor: '#25D366' }} disabled={isLoading}>
                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                 </svg>
