@@ -1027,6 +1027,30 @@ if (proofStatus === 'CANCELLED') {
         return;
       }
 
+      const callAIReply = async (msgText: string) => {
+        setMessages(prev => [...prev, { role: 'bot', text: 'جاري كتابة الرد...', buttons: [] }]);
+        try {
+          const res = await fetch('/api/chat/ai-reply', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: msgText }),
+          });
+          const data = await res.json();
+
+          setMessages(prev => {
+            const filtered = prev.filter(m => !(m.role === 'bot' && m.text === 'جاري كتابة الرد...'));
+            const reply = data.reply || 'أقدر أساعدك في متابعة الطلب، مشاهدة التوثيق، أو طلب خدمات أضحيتي من المتجر.';
+            const buttons = data.buttons || [{ label: 'تتبع الطلب', action: 'track' }, { label: 'اطلب من المتجر', action: 'shop' }, { label: '🟢 واتساب', action: 'support' }];
+            return [...filtered, { role: 'bot', text: reply, buttons }];
+          });
+        } catch {
+          setMessages(prev => {
+            const filtered = prev.filter(m => !(m.role === 'bot' && m.text === 'جاري كتابة الرد...'));
+            return [...filtered, { role: 'bot', text: 'أقدر أساعدك في متابعة الطلب، مشاهدة التوثيق، أو طلب خدمات أضحيتي من المتجر. اختر ما يناسبك من الخيارات التالية.', buttons: [{ label: 'تتبع الطلب', action: 'track' }, { label: 'اطلب من المتجر', action: 'shop' }, { label: '🟢 واتساب', action: 'support' }] }];
+          });
+        }
+      };
+
       switch (intent) {
         case 'greeting':
           showGreeting();
@@ -1072,10 +1096,10 @@ if (proofStatus === 'CANCELLED') {
           showSmallTalk();
           break;
         case 'unknown':
-          showUnknown();
+          callAIReply(text);
           break;
         default:
-          showUnknown();
+          callAIReply(text);
       }
     } catch (error) {
       console.error('CHAT_SEND_ERROR', error);
