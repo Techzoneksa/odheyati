@@ -58,7 +58,13 @@ function normalizeMobileForSearch(mobile: string): string[] {
 
 export async function GET(request: Request) {
   try {
-    const session = await getSession();
+    let session = null;
+    try {
+      session = await getSession();
+    } catch (sessionError) {
+      console.error('SESSION_ERROR:', sessionError);
+      return NextResponse.json({ error: 'Session error', details: String(sessionError) }, { status: 500 });
+    }
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
