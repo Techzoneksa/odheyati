@@ -1,0 +1,341 @@
+{% comment %}
+  Section: Odheyati Proof Tracking — توثيقات أضحيتي
+  Version: 1.0.0
+  Purpose: Allows Shopify customers to search for their proof by mobile or email,
+           then redirects them to almotamed.com/track
+{% endcomment %}
+
+{% comment %} === SCHEMA SETTINGS === {% endcomment %}
+{% schema %}
+{
+  "name": "توثيقات أضحيتي",
+  "tag": "section",
+  "class": "adahi-track-section",
+  "settings": [
+    {
+      "type": "header",
+      "content": "النصوص"
+    },
+    {
+      "type": "text",
+      "id": "title",
+      "label": "العنوان",
+      "default": "توثيقات أضحيتي"
+    },
+    {
+      "type": "textarea",
+      "id": "subtitle",
+      "label": "الوصف",
+      "default": "أدخل رقم جوالك أو بريدك الإلكتروني لمشاهدة توثيق طلبك."
+    },
+    {
+      "type": "text",
+      "id": "button_text",
+      "label": "نص الزر",
+      "default": "عرض التوثيق"
+    },
+    {
+      "type": "header",
+      "content": "الرابط"
+    },
+    {
+      "type": "url",
+      "id": "tracking_base_url",
+      "label": "رابط التتبع الأساسي",
+      "default": "https://almotamed.com/track"
+    },
+    {
+      "type": "header",
+      "content": "الألوان"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "لون الخلفية",
+      "default": "#fff8f2"
+    },
+    {
+      "type": "color",
+      "id": "primary_color",
+      "label": "اللون الأساسي (مارون)",
+      "default": "#973131"
+    },
+    {
+      "type": "color",
+      "id": "accent_color",
+      "label": "لون التمييز (ذهبي)",
+      "default": "#dca47c"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "لون النص (تاوپ)",
+      "default": "#917e69"
+    }
+  ],
+  "presets": [
+    {
+      "name": "توثيقات أضحيتي",
+      "category": "أضحيتي"
+    }
+  ]
+}
+{% endschema %}
+
+{% comment %} === STYLES === {% endcomment %}
+<style>
+  #shopify-section-{{ section.id }}.adahi-track-section {
+    background-color: {{ section.settings.background_color }};
+    padding: 40px 16px;
+    direction: rtl;
+    font-family: 'Noto Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
+  }
+
+  #shopify-section-{{ section.id }}.adahi-track-section .adahi-track-wrapper {
+    max-width: 480px;
+    margin: 0 auto;
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 32px 24px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    border: 1px solid rgba(151, 62, 49, 0.1);
+  }
+
+  #shopify-section-{{ section.id }}.adahi-track-section .adahi-track-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: {{ section.settings.primary_color }};
+    text-align: center;
+    margin: 0 0 8px 0;
+  }
+
+  #shopify-section-{{ section.id }}.adahi-track-section .adahi-track-subtitle {
+    font-size: 14px;
+    color: {{ section.settings.text_color }};
+    text-align: center;
+    margin: 0 0 24px 0;
+    line-height: 1.6;
+  }
+
+  #shopify-section-{{ section.id }}.adahi-track-section .adahi-toggle {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  #shopify-section-{{ section.id }}.adahi-track-section .adahi-toggle-btn {
+    flex: 1;
+    padding: 10px 16px;
+    border: 2px solid {{ section.settings.accent_color }};
+    border-radius: 10px;
+    background: transparent;
+    color: {{ section.settings.text_color }};
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+  }
+
+  #shopify-section-{{ section.id }}.adahi-track-section .adahi-toggle-btn.active {
+    background: {{ section.settings.primary_color }};
+    border-color: {{ section.settings.primary_color }};
+    color: #ffffff;
+  }
+
+  #shopify-section-{{ section.id }}.adahi-track-section .adahi-field {
+    margin-bottom: 16px;
+  }
+
+  #shopify-section-{{ section.id }}.adahi-track-section .adahi-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: {{ section.settings.text_color }};
+    margin-bottom: 6px;
+  }
+
+  #shopify-section-{{ section.id }}.adahi-track-section .adahi-input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1.5px solid #e0d6cc;
+    border-radius: 10px;
+    font-size: 15px;
+    direction: ltr;
+    text-align: right;
+    background: #fafaf8;
+    color: {{ section.settings.text_color }};
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+    font-family: inherit;
+  }
+
+  #shopify-section-{{ section.id }}.adahi-track-section .adahi-input:focus {
+    outline: none;
+    border-color: {{ section.settings.primary_color }};
+    background: #ffffff;
+  }
+
+  #shopify-section-{{ section.id }}.adahi-track-section .adahi-input::placeholder {
+    color: #b0a89a;
+  }
+
+  #shopify-section-{{ section.id }}.adahi-track-section .adahi-error {
+    font-size: 12px;
+    color: #d32f2f;
+    margin-top: 6px;
+    display: none;
+    font-weight: 500;
+  }
+
+  #shopify-section-{{ section.id }}.adahi-track-section .adahi-error.show {
+    display: block;
+  }
+
+  #shopify-section-{{ section.id }}.adahi-track-section .adahi-submit {
+    width: 100%;
+    padding: 14px;
+    background: {{ section.settings.primary_color }};
+    color: #ffffff;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s;
+    font-family: inherit;
+    margin-top: 4px;
+  }
+
+  #shopify-section-{{ section.id }}.adahi-track-section .adahi-submit:hover {
+    background: {{ section.settings.accent_color }};
+    color: {{ section.settings.primary_color }};
+  }
+
+  @media (max-width: 480px) {
+    #shopify-section-{{ section.id }}.adahi-track-section .adahi-track-wrapper {
+      padding: 24px 16px;
+    }
+  }
+</style>
+
+{% comment %} === HTML === {% endcomment %}
+<div class="adahi-track-wrapper">
+  <h2 class="adahi-track-title">{{ section.settings.title }}</h2>
+  <p class="adahi-track-subtitle">{{ section.settings.subtitle }}</p>
+
+  <div class="adahi-toggle">
+    <button
+      type="button"
+      class="adahi-toggle-btn active"
+      id="adahi-toggle-mobile-{{ section.id }}"
+      onclick="adahiSwitchType('mobile', '{{ section.id }}')"
+    >
+      📱 بحث بالجوال
+    </button>
+    <button
+      type="button"
+      class="adahi-toggle-btn"
+      id="adahi-toggle-email-{{ section.id }}"
+      onclick="adahiSwitchType('email', '{{ section.id }}')"
+    >
+      📧 بحث بالإيميل
+    </button>
+  </div>
+
+  <form onsubmit="adahiSubmit(event, '{{ section.id }}')" id="adahi-form-{{ section.id }}">
+    <div class="adahi-field" id="adahi-field-mobile-{{ section.id }}">
+      <label class="adahi-label" for="adahi-mobile-{{ section.id }}">رقم الجوال</label>
+      <input
+        type="tel"
+        id="adahi-mobile-{{ section.id }}"
+        class="adahi-input"
+        placeholder="5XXXXXXXX"
+        dir="ltr"
+        autocomplete="tel"
+      />
+      <p class="adahi-error" id="adahi-error-mobile-{{ section.id }}">اكتب رقم الجوال</p>
+    </div>
+
+    <div class="adahi-field" id="adahi-field-email-{{ section.id }}" style="display:none;">
+      <label class="adahi-label" for="adahi-email-{{ section.id }}">البريد الإلكتروني</label>
+      <input
+        type="email"
+        id="adahi-email-{{ section.id }}"
+        class="adahi-input"
+        placeholder="example@email.com"
+        dir="ltr"
+        autocomplete="email"
+      />
+      <p class="adahi-error" id="adahi-error-email-{{ section.id }}">اكتب بريدًا إلكترونيًا صحيحًا</p>
+    </div>
+
+    <button type="submit" class="adahi-submit">
+      {{ section.settings.button_text }}
+    </button>
+  </form>
+</div>
+
+{% comment %} === JAVASCRIPT === {% endcomment %}
+<script>
+  function adahiSwitchType(type, sectionId) {
+    var mobileBtn = document.getElementById('adahi-toggle-mobile-' + sectionId);
+    var emailBtn = document.getElementById('adahi-toggle-email-' + sectionId);
+    var mobileField = document.getElementById('adahi-field-mobile-' + sectionId);
+    var emailField = document.getElementById('adahi-field-email-' + sectionId);
+    var mobileInput = document.getElementById('adahi-mobile-' + sectionId);
+    var emailInput = document.getElementById('adahi-email-' + sectionId);
+    var mobileError = document.getElementById('adahi-error-mobile-' + sectionId);
+    var emailError = document.getElementById('adahi-error-email-' + sectionId);
+
+    mobileError.classList.remove('show');
+    emailError.classList.remove('show');
+
+    if (type === 'mobile') {
+      mobileBtn.classList.add('active');
+      emailBtn.classList.remove('active');
+      mobileField.style.display = 'block';
+      emailField.style.display = 'none';
+      emailInput.value = '';
+    } else {
+      emailBtn.classList.add('active');
+      mobileBtn.classList.remove('active');
+      emailField.style.display = 'block';
+      mobileField.style.display = 'none';
+      mobileInput.value = '';
+    }
+  }
+
+  function adahiSubmit(event, sectionId) {
+    event.preventDefault();
+
+    var mobileBtn = document.getElementById('adahi-toggle-mobile-' + sectionId);
+    var mobileInput = document.getElementById('adahi-mobile-' + sectionId);
+    var emailInput = document.getElementById('adahi-email-' + sectionId);
+    var mobileError = document.getElementById('adahi-error-mobile-' + sectionId);
+    var emailError = document.getElementById('adahi-error-email-' + sectionId);
+    var baseUrl = '{{ section.settings.tracking_base_url }}';
+
+    mobileError.classList.remove('show');
+    emailError.classList.remove('show');
+
+    if (mobileBtn.classList.contains('active')) {
+      var mobileValue = mobileInput.value.trim().replace(/\s+/g, '');
+      if (!mobileValue || mobileValue.length < 7) {
+        mobileError.classList.add('show');
+        return;
+      }
+      var url = baseUrl + '?mobile=' + encodeURIComponent(mobileValue);
+      window.location.href = url;
+    } else {
+      var emailValue = emailInput.value.trim().toLowerCase();
+      var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailValue || !emailRegex.test(emailValue)) {
+        emailError.classList.add('show');
+        return;
+      }
+      var url = baseUrl + '?email=' + encodeURIComponent(emailValue);
+      window.location.href = url;
+    }
+  }
+</script>

@@ -113,8 +113,13 @@ function TrackContent() {
   useEffect(() => {
     const urlCountryCode = searchParams.get('countryCode');
     const urlMobile = searchParams.get('mobile');
+    const urlEmail = searchParams.get('email');
 
-    if (urlCountryCode && urlMobile) {
+    if (urlEmail) {
+      setSearchType('email');
+      setEmail(urlEmail);
+      setAutoSearchExecuted(true);
+    } else if (urlCountryCode && urlMobile) {
       setCountryCode(urlCountryCode);
       setMobile(urlMobile.replace(/\D/g, ''));
       setAutoSearchExecuted(true);
@@ -122,11 +127,16 @@ function TrackContent() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (autoSearchExecuted && mobile.length >= 7) {
-      handleSubmit();
-      setAutoSearchExecuted(false);
+    if (autoSearchExecuted) {
+      if (searchType === 'email' && email) {
+        handleSubmit();
+        setAutoSearchExecuted(false);
+      } else if (searchType === 'mobile' && mobile.length >= 7) {
+        handleSubmit();
+        setAutoSearchExecuted(false);
+      }
     }
-  }, [autoSearchExecuted, handleSubmit]);
+  }, [autoSearchExecuted, handleSubmit, searchType, email, mobile]);
 
   return (
     <div className="card p-6">
