@@ -19,13 +19,17 @@ export async function GET(
 
     // Try reversed format (old tokens: random-timestamp → timestamp-random)
     if (!order && cleanToken.includes('-')) {
-      const parts = cleanToken.split('-');
-      if (parts.length === 2) {
-        const reversed = `${parts[1]}-${parts[0]}`;
-        order = await prisma.order.findUnique({
-          where: { proofToken: reversed },
-          include: { items: true, files: { orderBy: [{ type: 'asc' }, { sortOrder: 'asc' }] } },
-        });
+      try {
+        const parts = cleanToken.split('-');
+        if (parts.length === 2) {
+          const reversed = `${parts[1]}-${parts[0]}`;
+          order = await prisma.order.findUnique({
+            where: { proofToken: reversed },
+            include: { items: true, files: { orderBy: [{ type: 'asc' }, { sortOrder: 'asc' }] } },
+          });
+        }
+      } catch {
+        order = null;
       }
     }
 
@@ -33,10 +37,14 @@ export async function GET(
     if (!order) {
       const numberMatch = cleanToken.match(/\d{9,}/);
       if (numberMatch) {
-        order = await prisma.order.findFirst({
-          where: { orderNumber: { contains: numberMatch[0] } },
-          include: { items: true, files: { orderBy: [{ type: 'asc' }, { sortOrder: 'asc' }] } },
-        });
+        try {
+          order = await prisma.order.findFirst({
+            where: { orderNumber: numberMatch[0] },
+            include: { items: true, files: { orderBy: [{ type: 'asc' }, { sortOrder: 'asc' }] } },
+          });
+        } catch {
+          order = null;
+        }
       }
     }
 
