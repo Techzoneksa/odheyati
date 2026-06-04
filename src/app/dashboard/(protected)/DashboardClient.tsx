@@ -76,8 +76,10 @@ export default function DashboardClient() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [orderNumberSearch, setOrderNumberSearch] = useState('');
   const [mobileSearch, setMobileSearch] = useState('');
+  const [emailSearch, setEmailSearch] = useState('');
+  const [customerNameSearch, setCustomerNameSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [logoutLoading, setLogoutLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -104,8 +106,10 @@ export default function DashboardClient() {
     if (statusFilter && statusFilter !== 'all' && statusFilter !== '') {
       params.set('status', statusFilter);
     }
-    if (search) params.set('orderNumber', search);
-    if (mobileSearch) params.set('mobile', mobileSearch);
+    if (orderNumberSearch) params.set('orderNumber', orderNumberSearch.trim());
+    if (mobileSearch) params.set('mobile', mobileSearch.trim());
+    if (emailSearch) params.set('email', emailSearch.trim().toLowerCase());
+    if (customerNameSearch) params.set('customerName', customerNameSearch.trim());
 
     const res = await fetch(`/api/orders?${params}`, { credentials: 'include' });
     if (res.ok) {
@@ -121,14 +125,14 @@ export default function DashboardClient() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSearch(search.trim());
-    setMobileSearch(mobileSearch.trim());
     await fetchOrders(1);
   }
 
   function handleClear() {
-    setSearch('');
+    setOrderNumberSearch('');
     setMobileSearch('');
+    setEmailSearch('');
+    setCustomerNameSearch('');
     setStatusFilter('');
     setCurrentPage(1);
     fetchOrders(1);
@@ -209,8 +213,8 @@ export default function DashboardClient() {
               <label className="label">بحث برقم الطلب</label>
               <input
                 type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                value={orderNumberSearch}
+                onChange={(e) => setOrderNumberSearch(e.target.value)}
                 className="input-field"
                 placeholder="مثال: 262190392"
                 dir="ltr"
@@ -226,6 +230,30 @@ export default function DashboardClient() {
                 className="input-field"
                 placeholder="مثال: 532666623 أو 9665XXXXXXXX"
                 dir="ltr"
+              />
+            </div>
+
+            <div>
+              <label className="label">بحث بالإيميل</label>
+              <input
+                type="email"
+                value={emailSearch}
+                onChange={(e) => setEmailSearch(e.target.value)}
+                className="input-field"
+                placeholder="example@email.com"
+                dir="ltr"
+              />
+            </div>
+
+            <div>
+              <label className="label">بحث باسم العميل</label>
+              <input
+                type="text"
+                value={customerNameSearch}
+                onChange={(e) => setCustomerNameSearch(e.target.value)}
+                className="input-field"
+                placeholder="مثال: أحمد محمد"
+                dir="rtl"
               />
             </div>
 

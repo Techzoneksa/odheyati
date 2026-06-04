@@ -72,6 +72,8 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const orderNumber = searchParams.get('orderNumber');
     const mobile = searchParams.get('mobile');
+    const email = searchParams.get('email');
+    const customerName = searchParams.get('customerName');
     const status = searchParams.get('status');
     const whereClause: any = {};
 
@@ -93,6 +95,20 @@ export async function GET(request: Request) {
       whereClause.OR = mobileVariations.map(m => ({
         customerMobile: { contains: m },
       }));
+    }
+
+    if (email) {
+      whereClause.customerEmail = {
+        contains: email.trim().toLowerCase(),
+        mode: 'insensitive',
+      };
+    }
+
+    if (customerName) {
+      whereClause.customerName = {
+        contains: customerName.trim(),
+        mode: 'insensitive',
+      };
     }
 
     const page = parseInt(searchParams.get('page') || '1');
