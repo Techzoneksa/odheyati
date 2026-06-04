@@ -13,14 +13,14 @@ export async function GET(
     }
 
     const cleanToken = token.trim();
-
     let order = await prisma.order.findUnique({
       where: { proofToken: cleanToken },
-      include: {
-        items: true,
-        files: {
-          orderBy: [{ type: 'asc' }, { sortOrder: 'asc' }],
-        },
+      select: {
+        id: true,
+        orderNumber: true,
+        proofStatus: true,
+        customerName: true,
+        files: { select: { id: true, type: true } },
       },
     });
 
@@ -30,23 +30,25 @@ export async function GET(
         const reversedToken = `${parts[1]}-${parts[0]}`;
         order = await prisma.order.findUnique({
           where: { proofToken: reversedToken },
-          include: {
-            items: true,
-            files: {
-              orderBy: [{ type: 'asc' }, { sortOrder: 'asc' }],
-            },
+          select: {
+            id: true,
+            orderNumber: true,
+            proofStatus: true,
+            customerName: true,
+            files: { select: { id: true, type: true } },
           },
         });
       }
     }
 
-    if (!order) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
-    }
-
-    return NextResponse.json(order);
+    return NextResponse.json({
+      found: !!order,
+      orderNumber: order?.orderNumber,
+      proofStatus: order?.proofStatus,
+      filesCount: order?.files?.length || 0,
+      tokenReceived: cleanToken.slice(0, 8) + '...',
+    });
   } catch (error) {
-    console.error('PROOF_API_ERROR', error instanceof Error ? error.message : String(error));
-    return NextResponse.json({ error: 'Failed to fetch order' }, { status: 500 });
+    return NextResponse.json({ error: 'Lookup failed' }, { status: 500 });
   }
 }
