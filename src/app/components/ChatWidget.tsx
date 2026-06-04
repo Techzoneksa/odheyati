@@ -16,21 +16,177 @@ interface Message {
   text: string;
   buttons?: { label: string; action: string }[];
   links?: { label: string; url: string }[];
-  inputs?: { placeholder: string; action: string }[];
 }
 
-const WELCOME_MESSAGE: Message = {
-  role: 'bot',
-  text: 'السلام عليكم، حيّاك الله في أضحيتي 🌿\nكيف أقدر أخدمك؟',
-  buttons: [
-    { label: 'تتبع الطلب', action: 'track' },
-    { label: 'مشاهدة التوثيق', action: 'view_proof' },
-    { label: 'الاستفسار عن الأضحية', action: 'aqeela' },
-    { label: 'الاستفسار عن العقيقة', action: 'aqiqa' },
-    { label: 'الاستفسار عن النذر', action: 'nazar' },
-    { label: 'الاستفسار عن الكفارة', action: 'kafar' },
-    { label: 'التواصل مع الدعم', action: 'support' },
-  ],
+type Intent =
+  | 'greeting'
+  | 'order_tracking'
+  | 'service_udhiya'
+  | 'service_aqiqah'
+  | 'service_nadhr'
+  | 'service_kaffarah'
+  | 'store_order'
+  | 'support'
+  | 'lookup_input'
+  | 'faq_company_type'
+  | 'faq_official_store'
+  | 'faq_execution_mechanism'
+  | 'faq_duration'
+  | 'faq_delivery'
+  | 'faq_cancellation'
+  | 'unknown';
+
+function toDigits(str: string): string {
+  const arabic = '٠١٢٣٤٥٦٧٨٩';
+  let result = str;
+  for (let i = 0; i < arabic.length; i++) {
+    result = result.split(arabic[i]).join(String(i));
+  }
+  return result.replace(/[\s\-()+[\]]/g, '');
+}
+
+function isEmailQuery(text: string): boolean {
+  return text.includes('@') && text.includes('.');
+}
+
+function isNumericQuery(text: string): boolean {
+  const digits = toDigits(text);
+  return /^\d{7,}$/.test(digits);
+}
+
+function detectIntent(text: string): Intent {
+  const lower = text.toLowerCase().trim();
+
+  if (isEmailQuery(text) || isNumericQuery(text)) {
+    return 'lookup_input';
+  }
+
+  const exactGreetings = [
+    'السلام عليكم', 'عليكم السلام', 'سلام عليكم', 'وعليكم السلام',
+    'هلا', 'هلا والله', 'هلاا',
+    'مرحبا', 'مرحباً', 'مرحب',
+    'أهلًا', 'اهلا', 'اهلاا',
+    'صباح الخير', 'مساء الخير',
+    'حياك', 'حياك الله',
+    'الو', 'هاي', 'hoy', 'hi', 'hello',
+  ];
+
+  const cleanText = lower.replace(/[.!؟?،,]/g, '').trim();
+  if (exactGreetings.some(p => cleanText === p || cleanText.startsWith(p + ' '))) {
+    return 'greeting';
+  }
+
+  if (lower.includes('جهة خيرية') || lower.includes('خيرية') || lower.includes('جمعية') ||
+    lower.includes('تبرع') || lower.includes('متبرع') || lower.includes('شركة تجارية') ||
+    lower.includes('هل انتم جمعية') || lower.includes('هل أنتم جمعية') ||
+    lower.includes('هل انتم جهة') || lower.includes('هل أنتم جهة') ||
+    lower.includes('هل انتم شركة')) {
+    return 'faq_company_type';
+  }
+
+  if (lower.includes('موثق') || lower.includes('رسمي') || lower.includes('معتمد') ||
+    lower.includes('تصريح') || lower.includes('ترخيص') || lower.includes('سجل تجاري') ||
+    lower.includes('المركز السعودي') || lower.includes('هل المتجر موثق') ||
+    lower.includes('هل انتم موثقين') || lower.includes('هل أنتم موثقين') ||
+    lower.includes('هل المتجر رسمي')) {
+    return 'faq_official_store';
+  }
+
+  if (lower.includes('آلية التنفيذ') || lower.includes('الية التنفيذ') ||
+    lower.includes('كيف التنفيذ') || lower.includes('كيف يتم التنفيذ') ||
+    lower.includes('كيف تنفذون') || lower.includes('طريقة التنفيذ') ||
+    lower.includes('مراحل التنفيذ') || lower.includes('بعد الطلب ايش يصير') ||
+    lower.includes('بعد الطلب وش') || lower.includes('كيف تتم آلية')) {
+    return 'faq_execution_mechanism';
+  }
+
+  if (lower.includes('كم يستغرق') || lower.includes('مدة التنفيذ') ||
+    lower.includes('متى التنفيذ') || lower.includes('متى يتم التنفيذ') ||
+    lower.includes('كم يوم') || lower.includes('كم مدة') ||
+    lower.includes('متى يجهز') || lower.includes('متى يوصل') || lower.includes('متى يخلص')) {
+    return 'faq_duration';
+  }
+
+  if (lower.includes('استلام التوثيق') || lower.includes('كيف استلم') ||
+    lower.includes('كيف يوصلي') || lower.includes('وين التوثيق') ||
+    lower.includes('تقرير PDF') || lower.includes('ملف PDF') ||
+    lower.includes('هل ترسلون') || lower.includes('توثيق صوت') ||
+    lower.includes('استلم التقرير') || lower.includes('كيف اجيب التوثيق') ||
+    lower.includes('متى يوصل التقرير') || lower.includes('التوثيق يوصل') ||
+    (lower.includes('التوثيق') && lower.includes('واتساب')) ||
+    lower.includes('كيف يوصلني')) {
+    return 'faq_delivery';
+  }
+
+  if (lower.includes('تعديل الطلب') || lower.includes('الغاء الطلب') ||
+    lower.includes('إلغاء الطلب') || lower.includes('اقدر الغي') ||
+    lower.includes('أقدر ألغي') || lower.includes('اقدر اعدل') ||
+    lower.includes('أقدر أعدل') || lower.includes('الغاء') ||
+    lower.includes('إلغاء') || lower.includes('استرجاع') ||
+    (lower.includes('طلبي') && (lower.includes('اغير') || lower.includes('اعدل') || lower.includes('الغى') || lower.includes('الغقي') || lower.includes('يلغي') || lower.includes('يلغى') || lower.includes('اغير'))) ||
+    lower.includes('تغيير الطلب')) {
+    return 'faq_cancellation';
+  }
+
+  const trackingPatterns = [
+    'حالة طلبي', 'وين طلبي', 'توثيق', 'فيديو', 'صورة',
+    'وصل التوثيق', 'بروافع', 'بروف',
+    'ابي اتابع', 'تابع طلب', 'متابعة طلب',
+    'وش حال طلبي', 'كيف حال طلبي', 'جالة الطلب',
+    'طلب رقم', 'رقم الطلب',
+  ];
+  if (trackingPatterns.some(p => lower.includes(p))) {
+    return 'order_tracking';
+  }
+
+  if (lower.includes('اضحي') || lower.includes('أضحي') || lower.includes('أضحية') || lower.includes('اضحية')) {
+    return 'service_udhiya';
+  }
+  if (lower.includes('عقيقة') || lower.includes('عقيدة')) {
+    return 'service_aqiqah';
+  }
+  if (lower.includes('نذر') || lower.includes('نذور')) {
+    return 'service_nadhr';
+  }
+  if (lower.includes('كفارة') || lower.includes('كفارات')) {
+    return 'service_kaffarah';
+  }
+
+  const storePatterns = ['ابي اطلب', 'كيف اطلب', 'اطلب من المتجر', 'المتجر', 'خدم', 'خدمات', 'ذبيحة'];
+  if (storePatterns.some(p => lower.includes(p))) {
+    return 'store_order';
+  }
+
+  if (lower.includes('دعم') || lower.includes('واتساب') || lower.includes('whatsapp') || lower.includes('تواصل')) {
+    return 'support';
+  }
+
+  return 'unknown';
+}
+
+const MAIN_OPTIONS = [
+  { label: 'تتبع الطلب', action: 'track' },
+  { label: 'مشاهدة التوثيق', action: 'view_proof' },
+  { label: 'طلب خدمة من المتجر', action: 'store' },
+  { label: 'التواصل مع الدعم', action: 'support' },
+];
+
+const SERVICE_REPLIES: Record<string, { text: string }> = {
+  service_udhiya: {
+    text: 'خدمة الأضحية متاحة عبر متجر أضحيتي، ويمكنك الطلب بسهولة مع توثيق بالصوت والصورة بعد التنفيذ.',
+  },
+  service_aqiqah: {
+    text: 'خدمة العقيقة متاحة عبر متجر أضحيتي، ويمكنك الطلب بسهولة مع توثيق بالصوت والصورة بعد التنفيذ.',
+  },
+  service_nadhr: {
+    text: 'خدمة النذر متاحة عبر متجر أضحيتي، ويمكنك الطلب بسهولة مع توثيق بالصوت والصورة بعد التنفيذ.',
+  },
+  service_kaffarah: {
+    text: 'خدمة الكفارة متاحة عبر متجر أضحيتي، ويمكنك الطلب بسهولة مع توثيق بالصوت والصورة بعد التنفيذ.',
+  },
+  store_order: {
+    text: 'يمكنك طلب الخدمة مباشرة من متجر أضحيتي، وسيصلك التوثيق بالصوت والصورة بعد التنفيذ حسب حالة الطلب.',
+  },
 };
 
 function playSoftPing() {
@@ -56,6 +212,10 @@ export default function ChatWidget() {
   const [isMinimized, setIsMinimized] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const [popupVisible, setPopupVisible] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [inputValue, setInputValue] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [awaitingLookup, setAwaitingLookup] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -83,183 +243,310 @@ export default function ChatWidget() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, []);
+  }, [messages]);
 
-  const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
-  const [inputValue, setInputValue] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const openChat = () => {
+    setMessages([{
+      role: 'bot',
+      text: 'السلام عليكم، حيّاك الله في أضحيتي 🌿\nكيف نقدر نساعدك؟',
+      buttons: MAIN_OPTIONS,
+    }]);
+    setIsOpen(true);
+    setPopupVisible(false);
+    setTimeout(() => setShowPopup(false), 200);
+    sessionStorage.setItem('adahi_popup_shown', 'true');
+  };
 
-  const sendMessage = async (text: string) => {
-    const userMsg: Message = { role: 'user', text };
-    setMessages(prev => [...prev, userMsg]);
+  const showTrackingPrompt = () => {
+    setMessages([{
+      role: 'bot',
+      text: 'فضلا أدخل رقم الطلب أو رقم الجوال أو البريد الإلكتروني المرتبط بالطلب.\nإذا كان رقمك خارج السعودية، اكتب مفتاح الدولة بدون + وبدون أصفار في البداية، مثل: 9715XXXXXXXX.',
+      buttons: MAIN_OPTIONS,
+    }]);
+    setAwaitingLookup(true);
+  };
+
+  const showServiceResponse = (intent: string) => {
+    const reply = SERVICE_REPLIES[intent];
+    if (!reply) return;
+    setMessages([{
+      role: 'bot',
+      text: reply.text,
+      buttons: [
+        { label: 'اطلب من المتجر', action: 'shop' },
+        { label: 'التواصل مع الدعم', action: 'support' },
+      ],
+    }]);
+  };
+
+  const showUnknown = () => {
+    setMessages([{
+      role: 'bot',
+      text: 'أقدر أساعدك في متابعة الطلب، مشاهدة التوثيق، أو طلب خدمات أضحيتي من المتجر. اختر ما يناسبك من الخيارات التالية.',
+      buttons: MAIN_OPTIONS,
+    }]);
+  };
+
+  const showGreeting = () => {
+    setMessages([{
+      role: 'bot',
+      text: 'وعليكم السلام ورحمة الله، حيّاك الله 🌿\nكيف نقدر نساعدك؟',
+      buttons: MAIN_OPTIONS,
+    }]);
+  };
+
+  const showFAQResponse = (intent: string) => {
+    const faqResponses: Record<string, { text: string; buttons: { label: string; action: string }[] }> = {
+      faq_company_type: {
+        text: 'نحن شركة سعودية مرخصة ومسجلة بسجل تجاري رقم 7052388860، ولسنا جهة خيرية، ونقدم خدماتنا ضمن إطار تجاري موثوق.',
+        buttons: [
+          { label: 'اطلب من المتجر', action: 'shop' },
+          { label: 'التواصل مع الدعم', action: 'support' },
+        ],
+      },
+      faq_official_store: {
+        text: 'متجرنا الإلكتروني موثق ومعتمد لدى المركز السعودي للأعمال، شهادة رقم 0000129587، ونوفر تجربة شراء آمنة. نحن شركة سعودية رسمية بسجل تجاري رقم 7052388860 ونعمل وفق أعلى معايير الموثوقية.',
+        buttons: [
+          { label: 'اطلب من المتجر', action: 'shop' },
+          { label: 'التواصل مع الدعم', action: 'support' },
+        ],
+      },
+      faq_execution_mechanism: {
+        text: 'بعد إتمام الطلب، يتم تجهيز الذبيحة وفق الخيارات التي يحددها العميل، ثم تنفيذ عملية الذبح بإشراف مختص. بعد ذلك يتم توزيع اللحوم حسب نوع الخدمة المختارة، مع توثيق كامل لجميع المراحل.',
+        buttons: [
+          { label: 'اطلب من المتجر', action: 'shop' },
+          { label: 'تتبع الطلب', action: 'track' },
+          { label: 'التواصل مع الدعم', action: 'support' },
+        ],
+      },
+      faq_duration: {
+        text: 'مدة تنفيذ الطلب تصل إلى 10 أيام.',
+        buttons: [
+          { label: 'تتبع الطلب', action: 'track' },
+          { label: 'اطلب من المتجر', action: 'shop' },
+          { label: 'التواصل مع الدعم', action: 'support' },
+        ],
+      },
+      faq_delivery: {
+        text: 'فور الانتهاء من جميع مراحل التوثيق، يتم إرسال التقرير إلى رقم الواتساب الخاص بكم في ملف PDF مرتب وواضح.',
+        buttons: [
+          { label: 'تتبع الطلب', action: 'track' },
+          { label: 'التواصل مع الدعم', action: 'support' },
+        ],
+      },
+      faq_cancellation: {
+        text: 'يمكن طلب التعديل أو الإلغاء قبل بدء تنفيذ الطلب. أما بعد بدء التنفيذ، فلا يمكن الإلغاء نظرًا لارتباط الخدمة بإجراءات تشغيلية مباشرة.',
+        buttons: [
+          { label: 'التواصل مع الدعم', action: 'support' },
+          { label: 'تتبع الطلب', action: 'track' },
+        ],
+      },
+    };
+
+    const response = faqResponses[intent];
+    if (response) {
+      setMessages([{ role: 'bot', text: response.text, buttons: response.buttons }]);
+    }
+  };
+
+  const buildSingleOrderResponse = (order: OrderResult): { text: string; links: { label: string; url: string }[]; buttons?: { label: string; action: string }[] } => {
+    const nameGreeting = order.customerName ? `حياك الله يا ${order.customerName} 🌿\n\n` : 'حياك الله 🌿\n\n';
+    let body = `تم العثور على طلبك رقم ${order.orderNumber}.\n`;
+
+    if (order.proofStatus === 'CANCELLED') {
+      return {
+        text: `${nameGreeting}${body}طلبك ظاهر لدينا كطلب ملغي. للتفاصيل يمكنك التواصل مع الدعم.`,
+        links: [],
+        buttons: [{ label: 'التواصل مع الدعم', action: 'support' }],
+      };
+    }
+
+    if (order.hasMedia || order.proofStatus === 'READY' || order.proofStatus === 'VIEWED' || order.proofStatus === 'MEDIA_UPLOADED') {
+      return {
+        text: `${nameGreeting}${body}توثيق طلبك جاهز للمشاهدة ✅\nيمكنك الآن مشاهدة الصور والفيديوهات الخاصة بطلبك.`,
+        links: [{ label: 'مشاهدة التوثيق', url: order.proofUrl }],
+      };
+    }
+
+    if (order.proofStatus === 'PENDING') {
+      return {
+        text: `${nameGreeting}${body}طلبك موجود لدينا، وجاري التحضير للتنفيذ.\nبعد اكتمال التنفيذ ورفع التوثيق، سيظهر لك زر مشاهدة التوثيق مباشرة.`,
+        links: [],
+        buttons: [{ label: 'التواصل مع الدعم', action: 'support' }],
+      };
+    }
+
+    if (order.proofStatus === 'IN_PROGRESS') {
+      return {
+        text: `${nameGreeting}${body}طلبك قيد التنفيذ حاليًا، وسيتم تحديث التوثيق عند اكتماله.\nبعد اكتمال التنفيذ ورفع التوثيق، سيظهر لك زر مشاهدة التوثيق مباشرة.`,
+        links: [],
+        buttons: [{ label: 'التواصل مع الدعم', action: 'support' }],
+      };
+    }
+
+    if (order.proofStatus === 'SLAUGHTERED') {
+      return {
+        text: `${nameGreeting}${body}تم تنفيذ الذبح، وجاري تجهيز التوثيق ورفع الملفات.\nسيظهر لك زر مشاهدة التوثيق عند اكتمال الرفع.`,
+        links: [],
+        buttons: [{ label: 'التواصل مع الدعم', action: 'support' }],
+      };
+    }
+
+    return {
+      text: `${nameGreeting}${body}طلبك موجود لدينا، وجاري تجهيز التوثيق حاليًا.\nسيظهر لك رابط مشاهدة التوثيق فور اكتمال رفع الصور أو الفيديوهات.`,
+      links: [],
+      buttons: [{ label: 'التواصل مع الدعم', action: 'support' }],
+    };
+  };
+
+  const performLookup = async (text: string) => {
+    setMessages(prev => [...prev, { role: 'user', text }]);
     setInputValue('');
     setIsLoading(true);
+    setAwaitingLookup(false);
 
-    if ((text.includes('@') && text.includes('.')) || /^\d[\d\-+()\[\]\s]{6,}$/.test(text.replace(/\s/g, ''))) {
-      try {
-        const res = await fetch('/api/chat/order-lookup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: text }),
-        });
-        const data = await res.json();
+    try {
+      const res = await fetch('/api/chat/order-lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: text }),
+      });
+      const data = await res.json();
 
-        if (data.found && data.orders.length > 0) {
-          if (data.orders.length === 1) {
-            const order = data.orders[0];
-            let responseText = `تم العثور على طلبك ✅\n\nرقم الطلب: ${order.orderNumber}\nحالة التوثيق: ${order.statusText}`;
-            const links: { label: string; url: string }[] = [];
-            if (order.hasMedia || order.proofStatus === 'READY' || order.proofStatus === 'VIEWED' || order.proofStatus === 'MEDIA_UPLOADED') {
-              responseText += '\n\nتوثيق طلبكم جاهز للمشاهدة.';
-              links.push({ label: 'مشاهدة التوثيق', url: order.proofUrl });
-            } else {
-              responseText += '\n\nتم العثور على طلبكم، وجاري تجهيز التوثيق. سيتم إتاحة الصور والفيديوهات فور اكتمال الرفع.';
-            }
-            setMessages(prev => [...prev, { role: 'bot', text: responseText, links }]);
-          } else {
-            const responseText = `وجدت أكثر من طلب مرتبط بهذه البيانات. اختر الطلب الذي ترغب بمتابعته.`;
-            const buttons = data.orders.map((o: OrderResult) => ({
-              label: `رقم ${o.orderNumber} - ${o.proofStatus === 'CANCELLED' ? 'ملغي' : o.proofStatus === 'PENDING' ? 'قيد التحضير' : o.proofStatus === 'IN_PROGRESS' ? 'قيد التنفيذ' : 'جاهز'}`,
-              action: `select_order:${o.orderNumber}:${o.proofUrl}:${o.hasMedia}:${o.proofStatus}`,
-            }));
-            setMessages(prev => [...prev, { role: 'bot', text: responseText, buttons }]);
-          }
+      if (data.found && data.orders.length > 0) {
+        if (data.orders.length === 1) {
+          const result = buildSingleOrderResponse(data.orders[0]);
+          setMessages(prev => [...prev, { role: 'bot', text: result.text, links: result.links, buttons: result.buttons }]);
         } else {
-          setMessages(prev => [
-            ...prev,
-            {
-              role: 'bot',
-              text: data.message || 'لم أجد طلبًا مرتبطًا بهذه البيانات. تأكد من رقم الطلب أو الجوال أو البريد الإلكتروني وحاول مرة أخرى.',
-              buttons: [
-                { label: 'المحاولة مرة أخرى', action: 'retry' },
-                { label: 'التواصل مع الدعم', action: 'support' },
-              ],
-            },
-          ]);
+          const firstName = data.orders[0].customerName || 'عميلنا';
+          const greeting = `حياك الله يا ${firstName} 🌿`;
+          const intro = 'وجدت أكثر من طلب مرتبط بهذه البيانات. اختر الطلب الذي ترغب بمتابعته.';
+          const buttons = data.orders.map((o: OrderResult) => ({
+            label: `رقم ${o.orderNumber} - ${o.proofStatus === 'CANCELLED' ? 'ملغي' : o.proofStatus === 'PENDING' ? 'قيد التحضير' : o.proofStatus === 'IN_PROGRESS' ? 'قيد التنفيذ' : 'جاهز'}`,
+            action: `select_order:${o.orderNumber}:${o.proofUrl}:${o.hasMedia}:${o.proofStatus}:${o.customerName || ''}`,
+          }));
+          setMessages(prev => [...prev, { role: 'bot', text: `${greeting}\n${intro}`, buttons }]);
         }
-      } catch {
-        setMessages(prev => [...prev, { role: 'bot', text: 'حدث خطأ، حاول مرة أخرى', buttons: [{ label: 'حاول مرة أخرى', action: 'retry' }] }]);
+      } else {
+        setMessages(prev => [
+          ...prev,
+          {
+            role: 'bot',
+            text: data.message || 'لم أجد طلبًا مرتبطًا بهذه البيانات. تأكد من رقم الطلب أو الجوال أو البريد الإلكتروني وحاول مرة أخرى.',
+            buttons: MAIN_OPTIONS,
+          },
+        ]);
       }
-    } else {
+    } catch {
       setMessages(prev => [
         ...prev,
-        {
-          role: 'bot',
-          text: 'فضلاً أدخل رقم الطلب أو رقم الجوال أو البريد الإلكتروني المرتبط بالطلب.\n\nمثال:\n- 1027\n- 05XXXXXXXX (داخل السعودية)\n- 9715XXXXXXXX (خارج السعودية بدون + أو 00)',
-          inputs: [{ placeholder: 'أدخل رقم الطلب أو الجوال أو الإيميل', action: 'lookup' }],
-        },
+        { role: 'bot', text: 'حدث خطأ، حاول مرة أخرى', buttons: MAIN_OPTIONS },
       ]);
     }
     setIsLoading(false);
   };
 
   const handleButton = (action: string) => {
-    if (action === 'track') {
-      sendMessage('تتبع الطلب');
-    } else if (action === 'view_proof') {
-      sendMessage('مشاهدة التوثيق');
-    } else if (action === 'aqeela') {
-      setMessages(prev => [
-        ...prev,
-        { role: 'user', text: 'الاستفسار عن الأضحية' },
-        {
-          role: 'bot',
-          text: 'خدمة الأضحية متاحة عبر متجر أضحيتي، ويمكنك الطلب بسهولة مع توثيق بالصوت والصورة بعد التنفيذ.',
-          buttons: [
-            { label: 'اطلب من المتجر', action: 'shop' },
-            { label: 'التواصل مع الدعم', action: 'support' },
-          ],
-        },
-      ]);
-    } else if (action === 'aqiqa') {
-      setMessages(prev => [
-        ...prev,
-        { role: 'user', text: 'الاستفسار عن العقيقة' },
-        {
-          role: 'bot',
-          text: 'خدمة العقيقة متاحة عبر متجر أضحيتي، ويمكنك الطلب بسهولة مع توثيق بالصوت والصورة بعد التنفيذ.',
-          buttons: [
-            { label: 'اطلب من المتجر', action: 'shop' },
-            { label: 'التواصل مع الدعم', action: 'support' },
-          ],
-        },
-      ]);
-    } else if (action === 'nazar') {
-      setMessages(prev => [
-        ...prev,
-        { role: 'user', text: 'الاستفسار عن النذر' },
-        {
-          role: 'bot',
-          text: 'خدمة النذر متاحة عبر متجر أضحيتي، ويمكنك الطلب بسهولة مع توثيق بالصوت والصورة بعد التنفيذ.',
-          buttons: [
-            { label: 'اطلب من المتجر', action: 'shop' },
-            { label: 'التواصل مع الدعم', action: 'support' },
-          ],
-        },
-      ]);
-    } else if (action === 'kafar') {
-      setMessages(prev => [
-        ...prev,
-        { role: 'user', text: 'الاستفسار عن الكفارة' },
-        {
-          role: 'bot',
-          text: 'خدمة الكفارة متاحة عبر متجر أضحيتي، ويمكنك الطلب بسهولة مع توثيق بالصوت والصورة بعد التنفيذ.',
-          buttons: [
-            { label: 'اطلب من المتجر', action: 'shop' },
-            { label: 'التواصل مع الدعم', action: 'support' },
-          ],
-        },
-      ]);
+    if (action === 'track' || action === 'view_proof') {
+      showTrackingPrompt();
+    } else if (action === 'store') {
+      window.open('https://odheyati.com', '_blank');
+      setMessages(prev => [...prev, { role: 'bot', text: 'تم توجيهك إلى متجر أضحيتي 🌿', buttons: MAIN_OPTIONS }]);
     } else if (action === 'support') {
       window.open('https://api.whatsapp.com/send?phone=966562365161&text=', '_blank');
-      setMessages(prev => [...prev, { role: 'bot', text: 'تم فتح محادثة واتساب معنا!' }]);
+      setMessages(prev => [...prev, { role: 'bot', text: 'تم فتح محادثة واتساب معنا! 🌿', buttons: MAIN_OPTIONS }]);
     } else if (action === 'shop') {
       window.open('https://odheyati.com', '_blank');
-      setMessages(prev => [...prev, { role: 'bot', text: 'تم توجيهك إلى متجر أضحيتي 🌿' }]);
+      setMessages(prev => [...prev, { role: 'bot', text: 'تم توجيهك إلى متجر أضحيتي 🌿', buttons: MAIN_OPTIONS }]);
     } else if (action === 'retry') {
-      setMessages(prev => [WELCOME_MESSAGE]);
+      showUnknown();
     } else if (action.startsWith('select_order:')) {
       const parts = action.split(':');
+      const orderNumber = parts[1];
       const proofUrl = parts[2];
       const hasMedia = parts[3] === 'true';
       const proofStatus = parts[4];
-      setMessages(prev => [
-        ...prev,
-        {
-          role: 'bot',
-          text: hasMedia || proofStatus === 'READY' || proofStatus === 'VIEWED' || proofStatus === 'MEDIA_UPLOADED'
-            ? 'توثيق هذا الطلب جاهز للمشاهدة.'
-            : 'تم العثور على طلبكم، وجاري تجهيز التوثيق.',
-          links: [{ label: 'مشاهدة التوثيق', url: proofUrl }],
-        },
-      ]);
-    } else if (action === 'lookup') {
-      setMessages(prev => [
-        ...prev,
-        {
-          role: 'bot',
-          text: 'فضلاً أدخل رقم الطلب أو رقم الجوال أو البريد الإلكتروني المرتبط بالطلب.',
-          inputs: [{ placeholder: 'أدخل رقم الطلب أو الجوال أو الإيميل', action: 'lookup' }],
-        },
-      ]);
+      const customerName = parts[5] || '';
+
+      const nameGreeting = customerName ? `حياك الله يا ${customerName} 🌿\n\n` : 'حياك الله 🌿\n\n';
+      let body = `تم العثور على طلبك رقم ${orderNumber}.\n`;
+
+      let responseText = nameGreeting + body;
+      let links: { label: string; url: string }[] = [];
+      let buttons: { label: string; action: string }[] | undefined;
+
+      if (proofStatus === 'CANCELLED') {
+        responseText += 'طلبك ظاهر لدينا كطلب ملغي. للتفاصيل يمكنك التواصل مع الدعم.';
+        buttons = [{ label: 'التواصل مع الدعم', action: 'support' }];
+      } else if (hasMedia || proofStatus === 'READY' || proofStatus === 'VIEWED' || proofStatus === 'MEDIA_UPLOADED') {
+        responseText += 'توثيق طلبك جاهز للمشاهدة ✅\nيمكنك الآن مشاهدة الصور والفيديوهات الخاصة بطلبك.';
+        links = [{ label: 'مشاهدة التوثيق', url: proofUrl }];
+      } else if (proofStatus === 'PENDING') {
+        responseText += 'طلبك موجود لدينا، وجاري التحضير للتنفيذ.\nبعد اكتمال التنفيذ ورفع التوثيق، سيظهر لك زر مشاهدة التوثيق مباشرة.';
+        buttons = [{ label: 'التواصل مع الدعم', action: 'support' }];
+      } else if (proofStatus === 'IN_PROGRESS') {
+        responseText += 'طلبك قيد التنفيذ حاليًا، وسيتم تحديث التوثيق عند اكتماله.\nبعد اكتمال التنفيذ ورفع التوثيق، سيظهر لك زر مشاهدة التوثيق مباشرة.';
+        buttons = [{ label: 'التواصل مع الدعم', action: 'support' }];
+      } else if (proofStatus === 'SLAUGHTERED') {
+        responseText += 'تم تنفيذ الذبح، وجاري تجهيز التوثيق ورفع الملفات.\nسيظهر لك زر مشاهدة التوثيق عند اكتمال الرفع.';
+        buttons = [{ label: 'التواصل مع الدعم', action: 'support' }];
+      } else {
+        responseText += 'طلبك موجود لدينا، وجاري تجهيز التوثيق حاليًا.\nسيظهر لك رابط مشاهدة التوثيق فور اكتمال رفع الصور أو الفيديوهات.';
+        buttons = [{ label: 'التواصل مع الدعم', action: 'support' }];
+      }
+
+      setMessages(prev => [...prev, { role: 'bot', text: responseText, links, buttons }]);
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (inputValue.trim()) {
-      sendMessage(inputValue.trim());
+    const text = inputValue.trim();
+    if (!text) return;
+
+    const intent = detectIntent(text);
+
+    if (intent === 'lookup_input' || awaitingLookup) {
+      performLookup(text);
+      return;
     }
+
+    switch (intent) {
+      case 'greeting':
+        showGreeting();
+        break;
+      case 'order_tracking':
+        showTrackingPrompt();
+        break;
+      case 'service_udhiya':
+      case 'service_aqiqah':
+      case 'service_nadhr':
+      case 'service_kaffarah':
+      case 'store_order':
+        showServiceResponse(intent);
+        break;
+      case 'support':
+        handleButton('support');
+        break;
+      case 'faq_company_type':
+      case 'faq_official_store':
+      case 'faq_execution_mechanism':
+      case 'faq_duration':
+      case 'faq_delivery':
+      case 'faq_cancellation':
+        showFAQResponse(intent);
+        break;
+      case 'unknown':
+        showUnknown();
+        break;
+      default:
+        showUnknown();
+    }
+
+    setInputValue('');
   };
 
   const dismissPopup = () => {
-    setPopupVisible(false);
-    setTimeout(() => setShowPopup(false), 200);
-    sessionStorage.setItem('adahi_popup_shown', 'true');
-  };
-
-  const openFromPopup = () => {
-    setIsOpen(true);
     setPopupVisible(false);
     setTimeout(() => setShowPopup(false), 200);
     sessionStorage.setItem('adahi_popup_shown', 'true');
@@ -277,7 +564,7 @@ export default function ChatWidget() {
               <div className="flex items-start justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <span className="text-base">🌿</span>
-                  <span className="font-semibold text-sm" style={{ color: '#973131' }}>هل تريد متابعة طلبك؟</span>
+                  <span className="font-semibold text-sm" style={{ color: '#973131' }}>حيّاك الله في أضحيتي 🌿</span>
                 </div>
                 <button onClick={dismissPopup} className="text-gray-400 hover:text-gray-600 p-1" aria-label="إغلاق">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -286,22 +573,22 @@ export default function ChatWidget() {
                 </button>
               </div>
               <p className="text-xs text-gray-600 mb-3 leading-relaxed">
-                اكتب رقم الطلب أو الجوال أو الإيميل وسأعرض لك حالة التوثيق مباشرة.
+                تحتاج تتابع طلبك أو تستفسر عن خدماتنا؟ أنا هنا أساعدك.
               </p>
               <div className="flex gap-2">
                 <button
-                  onClick={openFromPopup}
+                  onClick={openChat}
                   className="flex-1 px-3 py-2 rounded-lg text-white text-xs font-medium transition-colors hover:opacity-90"
                   style={{ backgroundColor: '#973131' }}
                 >
-                  تتبع طلبي
+                  ابدأ المحادثة
                 </button>
                 <button
                   onClick={dismissPopup}
                   className="px-3 py-2 rounded-lg text-xs font-medium transition-colors hover:opacity-80"
                   style={{ backgroundColor: '#dca47c', color: '#973131' }}
                 >
-                  لاحقًا
+                  مو الحين
                 </button>
               </div>
             </div>
@@ -309,7 +596,7 @@ export default function ChatWidget() {
           </div>
         )}
         <button
-          onClick={() => setIsOpen(true)}
+          onClick={openChat}
           className="relative group"
           aria-label="مساعد أضحيتي"
         >
