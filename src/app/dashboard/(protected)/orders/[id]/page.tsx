@@ -68,26 +68,34 @@ export default async function OrderDetailsPage({ params }: Props) {
   if (!r2Ready) {
     filesWithUrls = rawFiles.map(file => ({ ...file, url: '' }));
   } else {
-    try {
-      filesWithUrls = await Promise.all(
-        rawFiles.map(async (file): Promise<FileWithUrl> => {
-          let url = '';
-          try {
-            url = await getSignedDownloadUrl(file.storageKey);
-          } catch {
-            url = '';
-          }
-          return { ...file, url };
-        })
-      );
-    } catch (urlError) {
-      console.error('SIGNED_URL_ERROR', {
-        orderId: id,
-        fileId: rawFiles.map(f => f.id),
-        errorMessage: urlError instanceof Error ? urlError.message : String(urlError)
-      });
-      filesWithUrls = rawFiles.map(file => ({ ...file, url: '' }));
-    }
+    if (!r2Ready) {
+    console.error("R2_CONFIG_MISSING: skipping signed URLs in order details");
+    filesWithUrls = rawFiles.map((file) => ({
+      ...file,
+      url: "",
+    }));
+  } else {
+    filesWithUrls = await Promise.all(
+      rawFiles.map(async (file): Promise<FileWithUrl> => {
+        let url = "";
+
+        try {
+          url = await getSignedDownloadUrl(file.storageKey);
+        } catch (error) {
+          console.error("ORDER_DETAILS_SIGNED_URL_FAILED", {
+            fileId: file.id,
+            fileType: file.type,
+            message: error instanceof Error ? error.message : String(error),
+          });
+        }
+
+        return {
+          ...file,
+          url,
+        };
+      })
+    );
+  }
   }
 
   return (
