@@ -88,8 +88,8 @@ export default function ImportPage() {
         const mobileCol = headers.findIndex(h => h.includes('جوال') || h.includes('mobile') || h.includes('phone'));
         const amountCol = headers.findIndex(h => h.includes('مبلغ') || h.includes('amount'));
 
-        if (orderCol === -1 || nameCol === -1 || mobileCol === -1) {
-          setError('الملف لا يحتوي على الأعمدة المطلوبة (رقم الطلب، اسم العميل، رقم الجوال)');
+        if (orderCol === -1 || nameCol === -1) {
+          setError('الأعمدة المطلوبة: رقم الطلب، اسم العميل (ورقم الجوال أو البريد الإلكتروني لكل صف)');
           return;
         }
 
@@ -268,8 +268,11 @@ export default function ImportPage() {
             <h3 className="text-sm font-semibold text-text-primary mb-2">تعليمات الاستيراد</h3>
             <div className="text-sm text-text-secondary">
               <p className="mb-2">يرجى رفع ملف الطلبات المصدر من سلة.</p>
-              <p><strong>الأعمدة المطلوبة:</strong> رقم الطلب، اسم العميل، رقم الجوال</p>
-              <p><strong>الأعمدة الاختيارية:</strong> حالة الطلب، المبلغ</p>
+              <p><strong>الأعمدة المطلوبة:</strong> رقم الطلب، اسم العميل</p>
+              <p><strong>الأعمدة الاختيارية:</strong> حالة الطلب، المبلغ، البريد الإلكتروني</p>
+              <p className="mt-2 text-xs text-yellow-700 bg-yellow-50 p-2 rounded border border-yellow-200">
+                ملاحظة: إذا لم يكن للعميل رقم جوال، أضف بريده الإلكتروني في عمود البريد الإلكتروني — سيتمكن من البحث عن توثيقه عبر الإيميل
+              </p>
             </div>
           </div>
 
