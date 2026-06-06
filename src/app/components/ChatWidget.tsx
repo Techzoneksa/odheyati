@@ -399,7 +399,7 @@ export default function ChatWidget({ embedded = false }: { embedded?: boolean } 
   return (
     <div
       className="chat-window"
-      style={embedded ? { position: 'relative', width: '100%', height: '100%', maxHeight: '100%' } : undefined}
+      style={embedded ? { position: 'relative', width: '100%', height: '100%', maxHeight: '100%', bottom: 'auto', left: 'auto', right: 'auto' } : undefined}
     >
       <div className="chat-header" dir="rtl">
         <div>
