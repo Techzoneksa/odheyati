@@ -5,10 +5,6 @@ import ChatWidget from './ChatWidget';
 
 export default function ChatWidgetWrapper() {
   const pathname = usePathname();
-
-  if (pathname?.startsWith('/dashboard') || pathname?.startsWith('/api') || pathname?.startsWith('/proof')) {
-    return null;
-  }
-
+  if (pathname?.startsWith('/dashboard')) return null;
   return <ChatWidget />;
 }
