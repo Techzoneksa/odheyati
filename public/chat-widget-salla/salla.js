@@ -1,5 +1,7 @@
 (function () {
+  if (window.__odheyatiSallaChatLoaded) return;
   if (document.getElementById('odheyati-salla-chat-widget')) return;
+  window.__odheyatiSallaChatLoaded = true;
 
   const EMBED_URL = 'https://almotamed.com/embed';
 

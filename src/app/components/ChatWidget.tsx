@@ -406,13 +406,15 @@ export default function ChatWidget({ embedded = false }: { embedded?: boolean } 
           <div style={{ fontWeight: 700, fontSize: 16 }}>مساعد أضحيتي</div>
           <div style={{ fontSize: 12, opacity: 0.85 }}>نحن هنا لمساعدتك</div>
         </div>
-        <button
-          onClick={closeChat}
-          style={{ background: 'none', border: 'none', color: '#fff', fontSize: 22, cursor: 'pointer', lineHeight: 1, padding: 0 }}
-          aria-label="إغلاق"
-        >
-          ✕
-        </button>
+        {!embedded && (
+          <button
+            onClick={closeChat}
+            style={{ background: 'none', border: 'none', color: '#fff', fontSize: 22, cursor: 'pointer', lineHeight: 1, padding: 0 }}
+            aria-label="إغلاق"
+          >
+            ✕
+          </button>
+        )}
       </div>
 
       <div className="chat-messages">
