@@ -21,7 +21,7 @@ interface ServiceCard {
 interface Message {
   role: 'bot' | 'user';
   text: string;
-  buttons?: { label: string; action: string }[];
+  buttons?: { label: string; action: string; isWhatsApp?: boolean }[];
   links?: { label: string; url: string }[];
   serviceCards?: ServiceCard[];
 }
@@ -520,11 +520,15 @@ function detectIntent(text: string): Intent {
   return 'unknown';
 }
 
+const WHATSAPP_ICON = '/icons/whatsapp-svgrepo-com.svg';
+const PRODUCTS_URL = 'https://odheyati.com/ar/%D8%A7%D9%84%D9%85%D9%86%D8%AA%D8%AC%D8%A7%D8%AA/c1947708130';
+const WHATSAPP_URL = 'https://api.whatsapp.com/send?phone=966562365161&text=';
+
 const MAIN_OPTIONS = [
   { label: 'تتبع الطلب', action: 'track' },
   { label: 'مشاهدة التوثيق', action: 'view_proof' },
   { label: 'طلب خدمة من المتجر', action: 'store' },
-  { label: '🟢 واتساب', action: 'support' },
+  { label: 'واتساب', action: 'support', isWhatsApp: true },
 ];
 
 const SERVICE_REPLIES: Record<string, { text: string; buttonLabel: string }> = {
@@ -550,25 +554,6 @@ const SERVICE_REPLIES: Record<string, { text: string; buttonLabel: string }> = {
   },
 };
 
-function playSoftPing() {
-  try {
-    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.setValueAtTime(1320, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.1);
-    gain.gain.setValueAtTime(0.08, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.15);
-    sessionStorage.setItem('adahi_sound_played', 'true');
-  } catch {
-    // silently ignore if audio fails due to autoplay policy
-  }
-}
-
 export default function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -577,15 +562,6 @@ export default function ChatWidget() {
   const [isLoading, setIsLoading] = useState(false);
   const [awaitingLookup, setAwaitingLookup] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const stored = localStorage.getItem('adahi_chat_open');
-    if (stored === 'true') setIsOpen(true);
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem('adahi_chat_open', isOpen.toString());
-  }, [isOpen]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -617,13 +593,14 @@ export default function ChatWidget() {
       text: reply.text,
       buttons: [
         { label: reply.buttonLabel, action: 'shop' },
-        { label: '🟢 واتساب', action: 'support' },
+        { label: 'واتساب', action: 'support', isWhatsApp: true },
       ],
     }]);
   };
 
   const showUnknown = () => {
-    setMessages(prev => [...prev, { role: 'bot',
+    setMessages(prev => [...prev, {
+      role: 'bot',
       text: 'أقدر أساعدك في متابعة الطلب، مشاهدة التوثيق، أو طلب خدمات أضحيتي من المتجر. اختر ما يناسبك من الخيارات التالية.',
       buttons: MAIN_OPTIONS,
     }]);
@@ -638,31 +615,31 @@ export default function ChatWidget() {
           title: 'الأضحية',
           description: 'خدمة الأضحية متاحة عبر متجر أضحيتي، مع توثيق بالصوت والصورة بعد التنفيذ.',
           buttonLabel: 'اطلب الأضحية',
-          url: 'https://odheyati.com/ar/%D8%A7%D9%84%D9%85%D9%86%D8%AA%D8%AC%D8%A7%D8%AA/c1947708130',
+          url: PRODUCTS_URL,
         },
         {
           title: 'العقيقة',
           description: 'خدمة العقيقة متاحة عبر متجر أضحيتي، مع توثيق بالصوت والصورة بعد التنفيذ.',
           buttonLabel: 'اطلب العقيقة',
-          url: 'https://odheyati.com/ar/%D8%A7%D9%84%D9%85%D9%86%D8%AA%D8%AC%D8%A7%D8%AA/c1947708130',
+          url: PRODUCTS_URL,
         },
         {
           title: 'النذر',
           description: 'خدمة النذر متاحة عبر متجر أضحيتي، مع توثيق بالصوت والصورة بعد التنفيذ.',
           buttonLabel: 'اطلب النذر',
-          url: 'https://odheyati.com/ar/%D8%A7%D9%84%D9%85%D9%86%D8%AA%D8%AC%D8%A7%D8%AA/c1947708130',
+          url: PRODUCTS_URL,
         },
         {
           title: 'الكفارة',
           description: 'خدمة الكفارة متاحة عبر متجر أضحيتي، مع توثيق بالصوت والصورة بعد التنفيذ.',
           buttonLabel: 'اطلب الكفارة',
-          url: 'https://odheyati.com/ar/%D8%A7%D9%84%D9%85%D9%86%D8%AA%D8%AC%D8%A7%D8%AA/c1947708130',
+          url: PRODUCTS_URL,
         },
       ],
     }]);
   };
 
-const showGreeting = () => {
+  const showGreeting = () => {
     const alreadyGreeted = sessionStorage.getItem('adahi_greeting_shown') === 'true';
     if (alreadyGreeted) {
       setMessages(prev => [...prev, {
@@ -691,33 +668,33 @@ const showGreeting = () => {
   };
 
   const showFAQResponse = (intent: string) => {
-    const faqResponses: Record<string, { text: string; buttons: { label: string; action: string }[] }> = {
+    const faqResponses: Record<string, { text: string; buttons: { label: string; action: string; isWhatsApp?: boolean }[] }> = {
       charity_or_commercial: {
         text: 'نحن شركة سعودية مرخصة ومسجلة بسجل تجاري رقم 7052388860، ولسنا جهة خيرية ولا نجمع تبرعات. نقدم خدماتنا ضمن إطار تجاري موثوق يشمل طلب الذبائح وتنفيذها وتوثيقها حسب الخدمة المختارة.',
         buttons: [
           { label: 'اطلب من المتجر', action: 'shop' },
-          { label: '🟢 واتساب', action: 'support' },
+          { label: 'واتساب', action: 'support', isWhatsApp: true },
         ],
       },
       official_store_trust: {
         text: 'متجر أضحيتي الإلكتروني موثق ومعتمد لدى المركز السعودي للأعمال، شهادة رقم 0000129587. نحن شركة سعودية رسمية بسجل تجاري رقم 7052388860، ونوفر تجربة شراء آمنة وموثوقة مع توثيق الطلب بعد التنفيذ.',
         buttons: [
           { label: 'اطلب من المتجر', action: 'shop' },
-          { label: '🟢 واتساب', action: 'support' },
+          { label: 'واتساب', action: 'support', isWhatsApp: true },
         ],
       },
       prices: {
         text: 'يمكنك الاطلاع على الأسعار والخدمات المتاحة مباشرة من متجر أضحيتي، حيث تظهر لك تفاصيل كل خدمة قبل إتمام الطلب. جميع الطلبات تتم عبر المتجر بشكل واضح وآمن.',
         buttons: [
           { label: 'عرض الأسعار في المتجر', action: 'shop' },
-          { label: '🟢 واتساب', action: 'support' },
+          { label: 'واتساب', action: 'support', isWhatsApp: true },
         ],
       },
       how_to_order: {
         text: 'يمكنك طلب الخدمة مباشرة من متجر أضحيتي عبر الرابط التالي. اختر الخدمة المناسبة، أكمل بيانات الطلب، وسيتم تنفيذ الطلب مع توثيق بالصوت والصورة بعد اكتمال التنفيذ.',
         buttons: [
           { label: 'اطلب من المتجر', action: 'shop' },
-          { label: '🟢 واتساب', action: 'support' },
+          { label: 'واتساب', action: 'support', isWhatsApp: true },
         ],
       },
       execution_process: {
@@ -725,34 +702,34 @@ const showGreeting = () => {
         buttons: [
           { label: 'اطلب من المتجر', action: 'shop' },
           { label: 'تتبع الطلب', action: 'track' },
-          { label: '🟢 واتساب', action: 'support' },
+          { label: 'واتساب', action: 'support', isWhatsApp: true },
         ],
       },
       execution_duration: {
         text: 'مدة تنفيذ الطلب تصل إلى 10 أيام. ويمكنك متابعة حالة الطلب من خلال رقم الطلب أو الجوال أو البريد الإلكتروني المرتبط بالطلب.',
         buttons: [
           { label: 'تتبع الطلب', action: 'track' },
-          { label: '🟢 واتساب', action: 'support' },
+          { label: 'واتساب', action: 'support', isWhatsApp: true },
         ],
       },
       proof_delivery: {
         text: 'فور الانتهاء من جميع مراحل التوثيق، يتم إرسال التقرير إلى رقم الواتساب الخاص بكم في ملف PDF مرتب وواضح. ويمكنك أيضًا متابعة التوثيق من خلال رقم الطلب أو الجوال أو البريد الإلكتروني.',
         buttons: [
           { label: 'تتبع الطلب', action: 'track' },
-          { label: '🟢 واتساب', action: 'support' },
+          { label: 'واتساب', action: 'support', isWhatsApp: true },
         ],
       },
-edit_cancel: {
+      edit_cancel: {
         text: 'يمكن طلب التعديل أو الإلغاء قبل بدء تنفيذ الطلب. أما بعد بدء التنفيذ، فلا يمكن الإلغاء نظرًا لارتباط الخدمة بإجراءات تشغيلية مباشرة. للتأكد من حالة طلبك يمكنك التواصل عبر واتساب.',
         buttons: [
-          { label: '🟢 واتساب', action: 'support' },
+          { label: 'واتساب', action: 'support', isWhatsApp: true },
           { label: 'تتبع الطلب', action: 'track' },
         ],
       },
       complaints: {
         text: 'نعتذر لك عن أي إزعاج، ويسعدنا خدمتك ومتابعة طلبك. يمكنك التواصل مباشرة مع الدعم عبر الواتساب، وسيتم مساعدتك بأقرب وقت.',
         buttons: [
-          { label: '🟢 واتساب', action: 'support' },
+          { label: 'واتساب', action: 'support', isWhatsApp: true },
           { label: 'تتبع الطلب', action: 'track' },
         ],
       },
@@ -760,63 +737,63 @@ edit_cancel: {
         text: 'يتم إتمام الطلب والدفع من خلال متجر أضحيتي الإلكتروني بشكل آمن وواضح. إذا واجهتك مشكلة في الدفع أو الفاتورة، يمكنك التواصل معنا عبر واتساب لمساعدتك.',
         buttons: [
           { label: 'اطلب من المتجر', action: 'shop' },
-          { label: '🟢 واتساب', action: 'support' },
+          { label: 'واتساب', action: 'support', isWhatsApp: true },
         ],
       },
       services_available: {
         text: 'تتوفر في متجر أضحيتي خدمات متعددة مثل الأضحية، العقيقة، النذر، والكفارة، مع توثيق بالصوت والصورة بعد التنفيذ.',
         buttons: [
           { label: 'اطلب من المتجر', action: 'shop' },
-          { label: '🟢 واتساب', action: 'support' },
+          { label: 'واتساب', action: 'support', isWhatsApp: true },
         ],
       },
       location_execution: {
         text: 'يتم تنفيذ الطلبات حسب الخدمة المختارة وآلية التشغيل المعتمدة لدى أضحيتي، مع توثيق مراحل التنفيذ بالصوت والصورة بعد اكتمال الطلب.',
         buttons: [
           { label: 'اطلب من المتجر', action: 'shop' },
-          { label: '🟢 واتساب', action: 'support' },
+          { label: 'واتساب', action: 'support', isWhatsApp: true },
         ],
       },
       livestock_types: {
         text: 'المتوفر في متجر أضحيتي يعتمد على الخدمات المعروضة في صفحة الطلب، وتشمل خيارات من المواشي مثل التيوس والخرفان حسب المتاح في المتجر. يمكنك مشاهدة الأنواع والأسعار من صفحة المنتجات مباشرة.',
         buttons: [
           { label: 'عرض المنتجات', action: 'shop' },
-          { label: '🟢 واتساب', action: 'support' },
+          { label: 'واتساب', action: 'support', isWhatsApp: true },
         ],
       },
       goat_sheep_question: {
         text: 'نعم، تتوفر خيارات من المواشي حسب المعروض في متجر أضحيتي، مثل التيوس والخرفان حسب توفرها في صفحة المنتجات. يمكنك اختيار الخدمة والنوع المناسب من المتجر مباشرة.',
         buttons: [
           { label: 'عرض المنتجات', action: 'shop' },
-          { label: '🟢 واتساب', action: 'support' },
+          { label: 'واتساب', action: 'support', isWhatsApp: true },
         ],
       },
       distribution_country: {
         text: 'يتم تنفيذ وتوزيع الطلبات خارج المملكة، ويكون التوزيع في أفريقيا حسب آلية التشغيل المعتمدة لدى أضحيتي، مع توثيق مراحل التنفيذ بالصوت والصورة بعد اكتمال الطلب.',
         buttons: [
           { label: 'اطلب من المتجر', action: 'shop' },
-          { label: '🟢 واتساب', action: 'support' },
+          { label: 'واتساب', action: 'support', isWhatsApp: true },
         ],
       },
       delivery_inside_saudi: {
         text: 'خدمة أضحيتي الحالية ليست توصيل لحوم داخل المملكة. يتم تنفيذ وتوزيع الطلبات خارج المملكة، مع إرسال التوثيق بالصوت والصورة بعد التنفيذ.',
         buttons: [
           { label: 'اطلب من المتجر', action: 'shop' },
-          { label: '🟢 واتساب', action: 'support' },
+          { label: 'واتساب', action: 'support', isWhatsApp: true },
         ],
       },
       execution_location: {
         text: 'يتم تنفيذ الطلبات خارج المملكة، ويكون التنفيذ والتوزيع في أفريقيا حسب الخدمة المختارة وآلية التشغيل المعتمدة لدى أضحيتي، مع توثيق بالصوت والصورة بعد التنفيذ.',
         buttons: [
           { label: 'اطلب من المتجر', action: 'shop' },
-          { label: '🟢 واتساب', action: 'support' },
+          { label: 'واتساب', action: 'support', isWhatsApp: true },
         ],
       },
       meat_delivery_or_receiving: {
         text: 'الخدمة لا تشمل توصيل اللحوم للعميل داخل المملكة. يتم تنفيذ وتوزيع الطلبات خارج المملكة، ويصلكم التوثيق بالصوت والصورة بعد اكتمال التنفيذ.',
         buttons: [
           { label: 'اطلب من المتجر', action: 'shop' },
-          { label: '🟢 واتساب', action: 'support' },
+          { label: 'واتساب', action: 'support', isWhatsApp: true },
         ],
       },
     };
@@ -827,15 +804,15 @@ edit_cancel: {
     }
   };
 
-  const buildSingleOrderResponse = (order: OrderResult): { text: string; links: { label: string; url: string }[]; buttons?: { label: string; action: string }[] } => {
+  const buildSingleOrderResponse = (order: OrderResult): { text: string; links: { label: string; url: string }[]; buttons?: { label: string; action: string; isWhatsApp?: boolean }[] } => {
     const nameGreeting = order.customerName ? `حياك الله يا ${order.customerName} 🌿\n\n` : 'حياك الله 🌿\n\n';
-    let body = `تم العثور على طلبك رقم ${order.orderNumber}.\n`;
+    const body = `تم العثور على طلبك رقم ${order.orderNumber}.\n`;
 
-if (order.proofStatus === 'CANCELLED') {
+    if (order.proofStatus === 'CANCELLED') {
       return {
-        text: `${nameGreeting}${body}طلبك ظاهر لدينا كطلب ملغي. للتفاصيل，你可以 التواصل معنا عبر واتساب.`,
+        text: `${nameGreeting}${body}طلبك ظاهر لدينا كطلب ملغي. للتفاصيل، يمكنك التواصل معنا عبر واتساب.`,
         links: [],
-        buttons: [{ label: '🟢 واتساب', action: 'support' }],
+        buttons: [{ label: 'واتساب', action: 'support', isWhatsApp: true }],
       };
     }
 
@@ -850,7 +827,7 @@ if (order.proofStatus === 'CANCELLED') {
       return {
         text: `${nameGreeting}${body}طلبك موجود لدينا، وجاري التحضير للتنفيذ.\nبعد اكتمال التنفيذ ورفع التوثيق، سيظهر لك زر مشاهدة التوثيق مباشرة.`,
         links: [],
-        buttons: [{ label: '🟢 واتساب', action: 'support' }],
+        buttons: [{ label: 'واتساب', action: 'support', isWhatsApp: true }],
       };
     }
 
@@ -858,7 +835,7 @@ if (order.proofStatus === 'CANCELLED') {
       return {
         text: `${nameGreeting}${body}طلبك قيد التنفيذ حاليًا، وسيتم تحديث التوثيق عند اكتماله.\nبعد اكتمال التنفيذ ورفع التوثيق، سيظهر لك زر مشاهدة التوثيق مباشرة.`,
         links: [],
-        buttons: [{ label: '🟢 واتساب', action: 'support' }],
+        buttons: [{ label: 'واتساب', action: 'support', isWhatsApp: true }],
       };
     }
 
@@ -866,14 +843,14 @@ if (order.proofStatus === 'CANCELLED') {
       return {
         text: `${nameGreeting}${body}تم تنفيذ الذبح، وجاري تجهيز التوثيق ورفع الملفات.\nسيظهر لك زر مشاهدة التوثيق عند اكتمال الرفع.`,
         links: [],
-        buttons: [{ label: '🟢 واتساب', action: 'support' }],
+        buttons: [{ label: 'واتساب', action: 'support', isWhatsApp: true }],
       };
     }
 
     return {
       text: `${nameGreeting}${body}طلبك موجود لدينا، وجاري تجهيز التوثيق حاليًا.\nسيظهر لك رابط مشاهدة التوثيق فور اكتمال رفع الصور أو الفيديوهات.`,
       links: [],
-      buttons: [{ label: '🟢 واتساب', action: 'support' }],
+      buttons: [{ label: 'واتساب', action: 'support', isWhatsApp: true }],
     };
   };
 
@@ -928,10 +905,10 @@ if (order.proofStatus === 'CANCELLED') {
     } else if (action === 'store') {
       showServiceCards();
     } else if (action === 'support') {
-      window.open('https://api.whatsapp.com/send?phone=966562365161&text=', '_blank');
+      window.open(WHATSAPP_URL, '_blank');
       setMessages(prev => [...prev, { role: 'bot', text: 'تم فتح محادثة واتساب معنا! 🌿', buttons: MAIN_OPTIONS }]);
     } else if (action === 'shop') {
-      window.open('https://odheyati.com/ar/%D8%A7%D9%84%D9%85%D9%86%D8%AA%D8%AC%D8%A7%D8%AA/c1947708130', '_blank');
+      window.open(PRODUCTS_URL, '_blank');
       setMessages(prev => [...prev, { role: 'bot', text: 'تم توجيهك إلى متجر أضحيتي 🌿', buttons: MAIN_OPTIONS }]);
     } else if (action === 'retry') {
       showUnknown();
@@ -944,30 +921,30 @@ if (order.proofStatus === 'CANCELLED') {
       const customerName = parts[5] || '';
 
       const nameGreeting = customerName ? `حياك الله يا ${customerName} 🌿\n\n` : 'حياك الله 🌿\n\n';
-      let body = `تم العثور على طلبك رقم ${orderNumber}.\n`;
+      const body = `تم العثور على طلبك رقم ${orderNumber}.\n`;
 
       let responseText = nameGreeting + body;
       let links: { label: string; url: string }[] = [];
-      let buttons: { label: string; action: string }[] | undefined;
+      let buttons: { label: string; action: string; isWhatsApp?: boolean }[] | undefined;
 
-if (proofStatus === 'CANCELLED') {
-        responseText += 'طلبك ظاهر لدينا كطلب ملغي. للتفاصيل，你可以 التواصل معنا عبر واتساب.';
-        buttons = [{ label: '🟢 واتساب', action: 'support' }];
+      if (proofStatus === 'CANCELLED') {
+        responseText += 'طلبك ظاهر لدينا كطلب ملغي. للتفاصيل، يمكنك التواصل معنا عبر واتساب.';
+        buttons = [{ label: 'واتساب', action: 'support', isWhatsApp: true }];
       } else if (hasMedia || proofStatus === 'READY' || proofStatus === 'VIEWED' || proofStatus === 'MEDIA_UPLOADED') {
         responseText += 'توثيق طلبك جاهز للمشاهدة ✅\nيمكنك الآن مشاهدة الصور والفيديوهات الخاصة بطلبك.';
         links = [{ label: 'مشاهدة التوثيق', url: proofUrl }];
       } else if (proofStatus === 'PENDING') {
         responseText += 'طلبك موجود لدينا، وجاري التحضير للتنفيذ.\nبعد اكتمال التنفيذ ورفع التوثيق، سيظهر لك زر مشاهدة التوثيق مباشرة.';
-        buttons = [{ label: '🟢 واتساب', action: 'support' }];
+        buttons = [{ label: 'واتساب', action: 'support', isWhatsApp: true }];
       } else if (proofStatus === 'IN_PROGRESS') {
         responseText += 'طلبك قيد التنفيذ حاليًا، وسيتم تحديث التوثيق عند اكتماله.\nبعد اكتمال التنفيذ ورفع التوثيق، سيظهر لك زر مشاهدة التوثيق مباشرة.';
-        buttons = [{ label: '🟢 واتساب', action: 'support' }];
+        buttons = [{ label: 'واتساب', action: 'support', isWhatsApp: true }];
       } else if (proofStatus === 'SLAUGHTERED') {
         responseText += 'تم تنفيذ الذبح، وجاري تجهيز التوثيق ورفع الملفات.\nسيظهر لك زر مشاهدة التوثيق عند اكتمال الرفع.';
-        buttons = [{ label: '🟢 واتساب', action: 'support' }];
+        buttons = [{ label: 'واتساب', action: 'support', isWhatsApp: true }];
       } else {
         responseText += 'طلبك موجود لدينا، وجاري تجهيز التوثيق حاليًا.\nسيظهر لك رابط مشاهدة التوثيق فور اكتمال رفع الصور أو الفيديوهات.';
-        buttons = [{ label: '🟢 واتساب', action: 'support' }];
+        buttons = [{ label: 'واتساب', action: 'support', isWhatsApp: true }];
       }
 
       setMessages(prev => [...prev, { role: 'bot', text: responseText, links, buttons }]);
@@ -1003,13 +980,13 @@ if (proofStatus === 'CANCELLED') {
           setMessages(prev => {
             const filtered = prev.filter(m => !(m.role === 'bot' && m.text === 'جاري كتابة الرد...'));
             const reply = data.reply || 'أقدر أساعدك في متابعة الطلب، مشاهدة التوثيق، أو طلب خدمات أضحيتي من المتجر.';
-            const buttons = data.buttons || [{ label: 'تتبع الطلب', action: 'track' }, { label: 'اطلب من المتجر', action: 'shop' }, { label: '🟢 واتساب', action: 'support' }];
+            const buttons = data.buttons || MAIN_OPTIONS;
             return [...filtered, { role: 'bot', text: reply, buttons }];
           });
         } catch {
           setMessages(prev => {
             const filtered = prev.filter(m => !(m.role === 'bot' && m.text === 'جاري كتابة الرد...'));
-            return [...filtered, { role: 'bot', text: 'أقدر أساعدك في متابعة الطلب، مشاهدة التوثيق، أو طلب خدمات أضحيتي من المتجر. اختر ما يناسبك من الخيارات التالية.', buttons: [{ label: 'تتبع الطلب', action: 'track' }, { label: 'اطلب من المتجر', action: 'shop' }, { label: '🟢 واتساب', action: 'support' }] }];
+            return [...filtered, { role: 'bot', text: 'أقدر أساعدك في متابعة الطلب، مشاهدة التوثيق، أو طلب خدمات أضحيتي من المتجر. اختر ما يناسبك من الخيارات التالية.', buttons: MAIN_OPTIONS }];
           });
         }
       };
@@ -1070,110 +1047,283 @@ if (proofStatus === 'CANCELLED') {
     }
   };
 
+  const ADATHI_RED = '#973131';
+  const ADATHI_GOLD = '#dca47c';
+  const ADATHI_BROWN = '#917e69';
+  const ADATHI_CREAM_BG = '#fff8f2';
+  const BOT_BUBBLE = '#ffffff';
+  const USER_BUBBLE = '#f5ede0';
+  const WIDGET_BG = '#faf6f1';
+  const INPUT_BG = '#f0ece4';
+
   if (!isOpen) {
     return (
-      <div className="fixed z-50" style={{ left: '16px', bottom: '24px' }}>
+      <div style={{ position: 'fixed', zIndex: 50, left: '12px', bottom: '20px' }}>
         <button
           onClick={openChat}
-          className="relative group"
+          style={{ position: 'relative', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
           aria-label="مساعد أضحيتي"
         >
-          <span className="absolute bottom-full mb-2 px-3 py-1.5 text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none" style={{ backgroundColor: '#333', color: '#fff', marginBottom: '8px', right: '0' }}>
+          <span style={{
+            position: 'absolute',
+            bottom: '100%',
+            marginBottom: '8px',
+            right: 0,
+            paddingLeft: '10px',
+            paddingRight: '10px',
+            paddingTop: '6px',
+            paddingBottom: '6px',
+            fontSize: '13px',
+            borderRadius: '8px',
+            backgroundColor: '#333',
+            color: '#fff',
+            whiteSpace: 'nowrap',
+            opacity: 0,
+            transform: 'translateY(4px)',
+            transition: 'opacity 0.2s, transform 0.2s',
+            pointerEvents: 'none',
+            fontFamily: 'inherit',
+          }} className="adahi-fab-tooltip">
             مساعد أضحيتي
           </span>
-          <span className="flex items-center justify-center rounded-full shadow-lg whatsapp-pulse" style={{ backgroundColor: '#25D366', width: '56px', height: '56px' }}>
-            <img src="/icons/whatsapp-svgrepo-com.svg" alt="واتساب" className="w-7 h-7" />
+          <span style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '54px',
+            height: '54px',
+            borderRadius: '50%',
+            backgroundColor: ADATHI_RED,
+            boxShadow: '0 4px 16px rgba(151,49,49,0.4)',
+            position: 'relative',
+          }} className="adahi-pulse-ring">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" style={{ display: 'block' }}>
+              <path d="M20 2H4C2.9 2 2 2.9 2 4V22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2ZM20 16H5.17L4 17.17V4H20V16ZM7 12H17V14H7V12ZM7 9H17V11H7V9ZM7 6H17V8H7V6Z" fill="white"/>
+            </svg>
           </span>
-          <style>{`
-            @keyframes whatsapp-pulse-ring {
-              0% { transform: scale(1); opacity: 0.4; }
-              100% { transform: scale(1.6); opacity: 0; }
-            }
-            .whatsapp-pulse::before {
-              content: '';
-              position: absolute;
-              inset: 0;
-              border-radius: 50%;
-              background-color: #25D366;
-              animation: whatsapp-pulse-ring 1.8s ease-out infinite;
-            }
-            .whatsapp-pulse:hover::before {
-              animation: none;
-              opacity: 0.3;
-            }
-          `}</style>
         </button>
+        <style>{`
+          @keyframes adahi-pulse-anim {
+            0% { box-shadow: 0 0 0 0 rgba(151,49,49,0.5); }
+            70% { box-shadow: 0 0 0 14px rgba(151,49,49,0); }
+            100% { box-shadow: 0 0 0 0 rgba(151,49,49,0); }
+          }
+          .adahi-pulse-ring {
+            animation: adahi-pulse-anim 2s ease-out infinite;
+          }
+          .adahi-pulse-ring:hover {
+            animation: none;
+            transform: scale(1.05);
+            transition: transform 0.2s;
+          }
+          button:hover .adahi-fab-tooltip {
+            opacity: 1 !important;
+            transform: translateY(0) !important;
+          }
+        `}</style>
       </div>
     );
   }
 
   return (
-    <div className="fixed z-50 overflow-hidden" style={{ direction: 'rtl', left: '16px', right: '16px', bottom: '24px', maxWidth: '420px', width: 'calc(100vw - 32px)' }}>
-      <div className="rounded-2xl shadow-2xl overflow-hidden" style={{ backgroundColor: '#ECE5DD', maxHeight: 'min(72vh, 640px)', display: 'flex', flexDirection: 'column' }}>
-        <div className="p-3 flex items-center justify-between shrink-0" style={{ backgroundColor: '#075E54' }}>
-          <div className="flex items-center gap-3">
-            <button onClick={() => setIsOpen(false)} className="text-white/80 hover:text-white p-1" aria-label="رجوع">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+    <div style={{
+      position: 'fixed',
+      zIndex: 50,
+      left: '12px',
+      right: '12px',
+      bottom: '20px',
+      maxWidth: 'min(400px, calc(100vw - 24px))',
+      width: '100%',
+      direction: 'rtl',
+      overflow: 'hidden',
+    }}>
+      <div style={{
+        borderRadius: '16px',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        maxHeight: 'min(70vh, 600px)',
+        backgroundColor: WIDGET_BG,
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '12px 14px',
+          backgroundColor: ADATHI_RED,
+          flexShrink: 0,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button
+              onClick={() => setIsOpen(false)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
+              aria-label="إغلاق"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 5l7 7-7 7"/>
               </svg>
             </button>
-            <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">
-                <span className="text-sm">🌿</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(255,255,255,0.18)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '18px',
+                flexShrink: 0,
+              }}>
+                🌿
               </div>
               <div>
-                <div className="font-semibold text-white text-sm">مساعد أضحيتي</div>
-                <div className="text-xs text-white/70">نحن هنا لمساعدتك</div>
+                <div style={{ fontWeight: 700, color: '#fff', fontSize: '14px', fontFamily: 'inherit' }}>مساعد أضحيتي</div>
+                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', fontFamily: 'inherit' }}>نحن هنا لمساعدتك</div>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-1">
-            <button onClick={() => setIsMinimized(!isMinimized)} className="text-white/80 hover:text-white p-1" aria-label="تصغير">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-              </svg>
-            </button>
-            <button onClick={() => setIsOpen(false)} className="text-white/80 hover:text-white p-1" aria-label="إغلاق">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+          <button
+            onClick={() => setIsMinimized(!isMinimized)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
+            aria-label="تصغير"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+          </button>
         </div>
 
         {!isMinimized && (
           <>
-            <div className="flex-1 overflow-y-auto p-3 space-y-2" style={{ backgroundColor: '#ECE5DD', minHeight: '0', maxHeight: 'min(58vh, 500px)' }}>
+            <div style={{
+              flex: 1,
+              overflowY: 'auto',
+              padding: '12px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              minHeight: 0,
+              maxHeight: 'min(55vh, 480px)',
+              backgroundColor: WIDGET_BG,
+            }}>
               {messages.map((msg, i) => (
-                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-start' : 'justify-end'}`}>
-                  <div className={`max-w-[85%] rounded-2xl p-3 shadow-sm ${msg.role === 'user' ? 'rounded-br-md' : 'rounded-bl-md'}`}
-                    style={msg.role === 'user' ? { backgroundColor: '#DCF8C6', color: '#111', wordBreak: 'break-word', overflowWrap: 'anywhere' } : { backgroundColor: '#fff', color: '#111', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-                    <p className="text-sm leading-relaxed whitespace-pre-line break-words">{msg.text}</p>
-                    {msg.buttons && (
-                      <div className="mt-3 flex flex-wrap gap-2">
+                <div key={i} style={{
+                  display: 'flex',
+                  justifyContent: msg.role === 'user' ? 'flex-start' : 'flex-end',
+                }}>
+                  <div style={{
+                    maxWidth: '85%',
+                    borderRadius: msg.role === 'user' ? '12px 4px 12px 12px' : '4px 12px 12px 12px',
+                    padding: '10px 12px',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+                    wordBreak: 'break-word',
+                    overflowWrap: 'anywhere',
+                    backgroundColor: msg.role === 'user' ? USER_BUBBLE : BOT_BUBBLE,
+                    color: '#333',
+                    fontFamily: 'inherit',
+                  }}>
+                    <p style={{
+                      fontSize: '13px',
+                      lineHeight: 1.6,
+                      whiteSpace: 'pre-line',
+                      margin: 0,
+                    }}>{msg.text}</p>
+                    {msg.buttons && msg.buttons.length > 0 && (
+                      <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                         {msg.buttons.map((btn, j) => (
-                          <button key={j} onClick={() => handleButton(btn.action)} className="text-xs px-3 py-1.5 rounded-full font-medium transition-colors max-w-full" style={{ backgroundColor: '#25D366', color: '#fff', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                          <button
+                            key={j}
+                            onClick={() => handleButton(btn.action)}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '5px 10px',
+                              borderRadius: '20px',
+                              fontSize: '12px',
+                              fontWeight: 600,
+                              fontFamily: 'inherit',
+                              backgroundColor: btn.isWhatsApp ? '#25D366' : ADATHI_RED,
+                              color: '#fff',
+                              border: 'none',
+                              cursor: 'pointer',
+                              whiteSpace: 'normal',
+                              wordBreak: 'break-word',
+                              maxWidth: '100%',
+                              transition: 'opacity 0.15s',
+                            }}
+                          >
+                            {btn.isWhatsApp && (
+                              <img src={WHATSAPP_ICON} alt="" width="14" height="14" style={{ display: 'inline-block', flexShrink: 0 }} />
+                            )}
                             {btn.label}
                           </button>
                         ))}
                       </div>
                     )}
-                    {msg.links && (
-                      <div className="mt-3">
+                    {msg.links && msg.links.length > 0 && (
+                      <div style={{ marginTop: '8px' }}>
                         {msg.links.map((lnk, j) => (
-                          <a key={j} href={lnk.url} target="_blank" rel="noopener noreferrer" className="inline-block text-xs px-3 py-1.5 rounded-full font-medium text-white transition-colors" style={{ backgroundColor: '#128C7E' }}>
+                          <a
+                            key={j}
+                            href={lnk.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: 'inline-block',
+                              padding: '5px 12px',
+                              borderRadius: '20px',
+                              fontSize: '12px',
+                              fontWeight: 600,
+                              backgroundColor: ADATHI_GOLD,
+                              color: '#fff',
+                              textDecoration: 'none',
+                              fontFamily: 'inherit',
+                            }}
+                          >
                             {lnk.label}
                           </a>
                         ))}
                       </div>
                     )}
-                    {msg.serviceCards && (
-                      <div className="mt-3 grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))' }}>
+                    {msg.serviceCards && msg.serviceCards.length > 0 && (
+                      <div style={{
+                        marginTop: '10px',
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+                        gap: '8px',
+                      }}>
                         {msg.serviceCards.map((card, j) => (
-                          <a key={j} href={card.url} target="_blank" rel="noopener noreferrer" className="block rounded-xl p-3 transition-colors" style={{ backgroundColor: '#fff', textDecoration: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden', wordBreak: 'break-word' }}>
-                            <div className="text-sm font-semibold mb-1" style={{ color: '#075E54' }}>{card.title}</div>
-                            <div className="text-xs mb-2 leading-relaxed" style={{ color: '#555', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{card.description}</div>
-                            <div className="text-xs font-medium text-center py-1.5 rounded-full text-white" style={{ backgroundColor: '#25D366' }}>{card.buttonLabel}</div>
+                          <a
+                            key={j}
+                            href={card.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: 'block',
+                              padding: '10px',
+                              borderRadius: '12px',
+                              backgroundColor: '#fff',
+                              textDecoration: 'none',
+                              boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
+                              overflow: 'hidden',
+                              wordBreak: 'break-word',
+                            }}
+                          >
+                            <div style={{ fontSize: '13px', fontWeight: 700, color: ADATHI_RED, marginBottom: '4px', fontFamily: 'inherit' }}>{card.title}</div>
+                            <div style={{ fontSize: '11px', color: '#666', lineHeight: 1.5, marginBottom: '8px', fontFamily: 'inherit', overflowWrap: 'anywhere' }}>{card.description}</div>
+                            <div style={{
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              textAlign: 'center',
+                              padding: '5px',
+                              borderRadius: '16px',
+                              color: '#fff',
+                              backgroundColor: ADATHI_RED,
+                              fontFamily: 'inherit',
+                            }}>{card.buttonLabel}</div>
                           </a>
                         ))}
                       </div>
@@ -1182,12 +1332,20 @@ if (proofStatus === 'CANCELLED') {
                 </div>
               ))}
               {isLoading && (
-                <div className="flex justify-end">
-                  <div className="rounded-2xl p-3" style={{ backgroundColor: '#fff' }}>
-                    <div className="flex gap-1">
-                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <div style={{ borderRadius: '12px', padding: '10px 14px', backgroundColor: '#fff' }}>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      {[0, 150, 300].map(delay => (
+                        <span key={delay} style={{
+                          width: '7px',
+                          height: '7px',
+                          borderRadius: '50%',
+                          backgroundColor: '#ccc',
+                          animation: 'bounce 1s ease-in-out infinite',
+                          animationDelay: `${delay}ms`,
+                          display: 'block',
+                        }} />
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -1195,23 +1353,67 @@ if (proofStatus === 'CANCELLED') {
               <div ref={messagesEndRef} />
             </div>
 
-            <form onSubmit={handleSubmit} className="p-2 flex gap-2 items-center shrink-0" style={{ backgroundColor: '#F0F2F5' }}>
+            <form
+              onSubmit={handleSubmit}
+              style={{
+                display: 'flex',
+                gap: '8px',
+                alignItems: 'center',
+                padding: '10px 12px',
+                backgroundColor: INPUT_BG,
+                flexShrink: 0,
+              }}
+            >
               <input
                 type="text"
                 value={inputValue}
                 onChange={e => setInputValue(e.target.value)}
                 placeholder="اكتب رسالة..."
-                className="flex-1 px-4 py-2.5 rounded-full text-sm text-right min-w-0"
-                style={{ backgroundColor: '#fff', border: 'none', color: '#333', outline: 'none', boxSizing: 'border-box' }}
+                style={{
+                  flex: 1,
+                  padding: '10px 14px',
+                  borderRadius: '24px',
+                  border: 'none',
+                  fontSize: '13px',
+                  color: '#333',
+                  backgroundColor: '#fff',
+                  outline: 'none',
+                  fontFamily: 'inherit',
+                  direction: 'rtl',
+                  minWidth: 0,
+                  boxSizing: 'border-box',
+                }}
                 dir="rtl"
               />
-              <button type="submit" className="px-4 py-2 rounded-full text-white text-sm font-medium transition-colors shrink-0" style={{ backgroundColor: '#25D366' }} disabled={isLoading}>
+              <button
+                type="submit"
+                disabled={isLoading}
+                style={{
+                  padding: '9px 16px',
+                  borderRadius: '24px',
+                  backgroundColor: isLoading ? ADATHI_BROWN : ADATHI_RED,
+                  color: '#fff',
+                  border: 'none',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
+                  fontFamily: 'inherit',
+                  flexShrink: 0,
+                  transition: 'background-color 0.2s',
+                }}
+              >
                 إرسال
               </button>
             </form>
           </>
         )}
       </div>
+      <style>{`
+        @keyframes bounce {
+          0%, 80%, 100% { transform: translateY(0); }
+          40% { transform: translateY(-5px); }
+        }
+      `}</style>
     </div>
   );
 }
