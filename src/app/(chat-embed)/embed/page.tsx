@@ -4,8 +4,8 @@ export const dynamic = 'force-dynamic';
 
 export default function ChatEmbedPage() {
   return (
-    <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 99999 }}>
-      <ChatWidget />
+    <div style={{ margin: 0, padding: 0, background: '#fff8f2', minHeight: '100vh' }}>
+      <ChatWidget embedded={true} />
     </div>
   );
 }

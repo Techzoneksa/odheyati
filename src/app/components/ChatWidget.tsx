@@ -59,12 +59,19 @@ const OPENING_MESSAGE: Message = {
 
 const FALLBACK_REPLY = 'يسعدنا مساعدتك. تواصل معنا عبر واتساب للمزيد من الدعم.';
 
-export default function ChatWidget() {
+export default function ChatWidget({ embedded = false }: { embedded?: boolean } = {}) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (embedded && messages.length === 0) {
+      setMessages([OPENING_MESSAGE]);
+      setIsOpen(true);
+    }
+  }, [embedded]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -379,7 +386,7 @@ export default function ChatWidget() {
     callAIReply(text);
   };
 
-  if (!isOpen) {
+  if (!isOpen && !embedded) {
     return (
       <button className="chat-fab" onClick={openChat} aria-label="مساعد أضحيتي">
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
@@ -390,7 +397,10 @@ export default function ChatWidget() {
   }
 
   return (
-    <div className="chat-window">
+    <div
+      className="chat-window"
+      style={embedded ? { position: 'relative', width: '100%', height: '100%', maxHeight: '100%' } : undefined}
+    >
       <div className="chat-header" dir="rtl">
         <div>
           <div style={{ fontWeight: 700, fontSize: 16 }}>مساعد أضحيتي</div>

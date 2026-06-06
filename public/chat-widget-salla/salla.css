@@ -1,0 +1,103 @@
+#odheyati-salla-chat-widget * { box-sizing: border-box; }
+
+#odheyati-salla-chat-launcher {
+  position: fixed;
+  bottom: 24px;
+  right: 20px;
+  z-index: 99999;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #973131;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(151,49,49,0.45);
+  animation: od-pulse 2s infinite;
+}
+
+@keyframes od-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(151,49,49,0.5); }
+  70%  { box-shadow: 0 0 0 14px rgba(151,49,49,0); }
+  100% { box-shadow: 0 0 0 0 rgba(151,49,49,0); }
+}
+
+#odheyati-salla-chat-launcher:hover::after {
+  content: 'مساعد أضحيتي';
+  position: absolute;
+  bottom: 64px;
+  right: 0;
+  background: #222;
+  color: #fff;
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  font-family: Arial, sans-serif;
+}
+
+#odheyati-salla-chat-window {
+  position: fixed;
+  bottom: 88px;
+  right: 20px;
+  width: 390px;
+  height: 620px;
+  max-height: calc(100vh - 120px);
+  border-radius: 16px;
+  overflow: hidden;
+  z-index: 99998;
+  display: none;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  background: #973131;
+}
+
+#odheyati-salla-chat-window.open {
+  display: flex;
+}
+
+#odheyati-salla-chat-header {
+  background: #973131;
+  color: #fff;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  font-family: Arial, sans-serif;
+  direction: rtl;
+}
+
+#odheyati-salla-chat-close {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 22px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+#odheyati-salla-chat-frame {
+  flex: 1;
+  width: 100%;
+  border: none;
+  background: #fff8f2;
+}
+
+@media (max-width: 640px) {
+  #odheyati-salla-chat-launcher {
+    bottom: 18px;
+    right: 14px;
+  }
+  #odheyati-salla-chat-window {
+    right: 12px;
+    left: 12px;
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+    height: min(72vh, 640px);
+    bottom: 84px;
+  }
+}
