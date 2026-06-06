@@ -3,7 +3,8 @@
 #odheyati-salla-chat-launcher {
   position: fixed;
   bottom: 24px;
-  right: 20px;
+  left: 20px;
+  right: auto;
   z-index: 99999;
   width: 56px;
   height: 56px;
@@ -28,7 +29,8 @@
   content: 'مساعد أضحيتي';
   position: absolute;
   bottom: 64px;
-  right: 0;
+  left: 0;
+  right: auto;
   background: #222;
   color: #fff;
   font-size: 12px;
@@ -40,8 +42,9 @@
 
 #odheyati-salla-chat-window {
   position: fixed;
-  bottom: 88px;
-  right: 20px;
+  bottom: 92px;
+  left: 20px;
+  right: auto;
   width: 390px;
   height: 620px;
   max-height: calc(100vh - 120px);
@@ -90,11 +93,12 @@
 @media (max-width: 640px) {
   #odheyati-salla-chat-launcher {
     bottom: 18px;
-    right: 14px;
+    left: 14px;
+    right: auto;
   }
   #odheyati-salla-chat-window {
-    right: 12px;
     left: 12px;
+    right: 12px;
     width: calc(100vw - 24px);
     max-width: calc(100vw - 24px);
     height: min(72vh, 640px);
