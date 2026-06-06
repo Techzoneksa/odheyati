@@ -45,10 +45,12 @@ function TrackContent() {
         const data = await res.json();
 
         if (!res.ok || data.error) {
-          setError('لم نجد توثيقًا مرتبطًا بهذا الإيميل. تأكد من الإيميل وحاول مرة أخرى.');
+          setError('لم نجد طلبًا مرتبطًا بهذا البريد الإلكتروني. تأكد من الإيميل وحاول مرة أخرى.');
           setLoading(false);
           return;
         }
+
+        const readyStatuses = ['READY', 'VIEWED', 'MEDIA_UPLOADED'];
 
         if (data.orders && data.orders.length > 1) {
           setOrders(data.orders);
@@ -56,12 +58,15 @@ function TrackContent() {
           return;
         }
 
-        if (data.token) {
-          window.location.href = `/proof/${data.token}`;
-        } else if (data.orders && data.orders.length === 1) {
-          window.location.href = `/proof/${data.orders[0].proofToken}`;
+        if (data.orders && data.orders.length === 1) {
+          const order = data.orders[0];
+          if (order.proofToken && readyStatuses.includes(order.proofStatus)) {
+            window.location.href = `/proof/${order.proofToken}`;
+          } else {
+            setError('طلبك موجود لدينا وجاري تجهيز التوثيق حاليًا. سيظهر رابط مشاهدة التوثيق فور اكتمال رفع الصور أو الفيديوهات.');
+          }
         } else {
-          setError('لم نجد توثيقًا مرتبطًا بهذا الإيميل. تأكد من الإيميل وحاول مرة أخرى.');
+          setError('لم نجد طلبًا مرتبطًا بهذا البريد الإلكتروني. تأكد من الإيميل وحاول مرة أخرى.');
         }
       } catch {
         setError('حدث خطأ، حاول مرة أخرى');
@@ -86,10 +91,12 @@ function TrackContent() {
       const data = await res.json();
 
       if (!res.ok || data.error) {
-        setError('لم نجد توثيقًا مرتبطًا بهذا الرقم. تأكد من الرقم وحاول مرة أخرى.');
+        setError('لم نجد طلبًا مرتبطًا بهذا الرقم. تأكد من الرقم وحاول مرة أخرى.');
         setLoading(false);
         return;
       }
+
+      const readyStatuses = ['READY', 'VIEWED', 'MEDIA_UPLOADED'];
 
       if (data.orders && data.orders.length > 1) {
         setOrders(data.orders);
@@ -97,12 +104,15 @@ function TrackContent() {
         return;
       }
 
-      if (data.token) {
-        window.location.href = `/proof/${data.token}`;
-      } else if (data.orders && data.orders.length === 1) {
-        window.location.href = `/proof/${data.orders[0].proofToken}`;
+      if (data.orders && data.orders.length === 1) {
+        const order = data.orders[0];
+        if (order.proofToken && readyStatuses.includes(order.proofStatus)) {
+          window.location.href = `/proof/${order.proofToken}`;
+        } else {
+          setError('طلبك موجود لدينا وجاري تجهيز التوثيق حاليًا. سيظهر رابط مشاهدة التوثيق فور اكتمال رفع الصور أو الفيديوهات.');
+        }
       } else {
-        setError('لم نجد توثيقًا مرتبطًا بهذا الرقم. تأكد من الرقم وحاول مرة أخرى.');
+        setError('لم نجد طلبًا مرتبطًا بهذا الرقم. تأكد من الرقم وحاول مرة أخرى.');
       }
     } catch {
       setError('حدث خطأ، حاول مرة أخرى');
@@ -119,9 +129,35 @@ function TrackContent() {
       setSearchType('email');
       setEmail(urlEmail);
       setAutoSearchExecuted(true);
-    } else if (urlCountryCode && urlMobile) {
-      setCountryCode(urlCountryCode);
-      setMobile(urlMobile.replace(/\D/g, ''));
+    } else if (urlMobile) {
+      const cleanMobile = urlMobile.replace(/\D/g, '');
+      if (urlCountryCode) {
+        setCountryCode(urlCountryCode);
+        setMobile(cleanMobile.startsWith(urlCountryCode) ? cleanMobile.substring(urlCountryCode.length) : cleanMobile);
+      } else {
+        if (cleanMobile.startsWith('966')) {
+          setCountryCode('966');
+          setMobile(cleanMobile.substring(3));
+        } else if (cleanMobile.startsWith('971')) {
+          setCountryCode('971');
+          setMobile(cleanMobile.substring(3));
+        } else if (cleanMobile.startsWith('965')) {
+          setCountryCode('965');
+          setMobile(cleanMobile.substring(3));
+        } else if (cleanMobile.startsWith('974')) {
+          setCountryCode('974');
+          setMobile(cleanMobile.substring(3));
+        } else if (cleanMobile.startsWith('973')) {
+          setCountryCode('973');
+          setMobile(cleanMobile.substring(3));
+        } else if (cleanMobile.startsWith('968')) {
+          setCountryCode('968');
+          setMobile(cleanMobile.substring(3));
+        } else {
+          setCountryCode('966');
+          setMobile(cleanMobile);
+        }
+      }
       setAutoSearchExecuted(true);
     }
   }, [searchParams]);
