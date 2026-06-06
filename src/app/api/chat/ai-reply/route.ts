@@ -3,7 +3,11 @@ import { NextRequest, NextResponse } from 'next/server';
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
 const FALLBACK_REPLY = 'أقدر أساعدك في متابعة الطلب، مشاهدة التوثيق، أو طلب خدمات أضحيتي من المتجر. اختر ما يناسبك من الخيارات التالية.';
-const FALLBACK_BUTTONS = [{ label: 'تتبع الطلب', action: 'track' }, { label: 'اطلب من المتجر', action: 'shop' }, { label: '🟢 واتساب', action: 'support' }];
+const FALLBACK_BUTTONS = [
+  { label: 'تتبع الطلب', action: 'track' },
+  { label: 'اطلب من المتجر', action: 'shop' },
+  { label: 'واتساب', action: 'support', isWhatsApp: true },
+];
 
 const SYSTEM_PROMPT = `أنت مساعد أضحيتي لخدمة العملاء.
 أجب بالعربية وبأسلوب سعودي لطيف ومختصر.

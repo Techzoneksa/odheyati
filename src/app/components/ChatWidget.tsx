@@ -962,12 +962,15 @@ export default function ChatWidget() {
 
       const intent = detectIntent(text);
 
+      console.log('CHAT_INTENT', { intent, textLength: text.length, textPreview: text.substring(0, 30) });
+
       if (intent === 'lookup_input' || awaitingLookup) {
         performLookup(text);
         return;
       }
 
       const callAIReply = async (msgText: string) => {
+        console.log('CHAT_UNKNOWN_CALL_AI_START', { msgLength: msgText.length });
         setMessages(prev => [...prev, { role: 'bot', text: 'جاري كتابة الرد...', buttons: [] }]);
         try {
           const res = await fetch('/api/chat/ai-reply', {
@@ -981,9 +984,11 @@ export default function ChatWidget() {
             const filtered = prev.filter(m => !(m.role === 'bot' && m.text === 'جاري كتابة الرد...'));
             const reply = data.reply || 'أقدر أساعدك في متابعة الطلب، مشاهدة التوثيق، أو طلب خدمات أضحيتي من المتجر.';
             const buttons = data.buttons || MAIN_OPTIONS;
+            console.log('CHAT_UNKNOWN_CALL_AI_SUCCESS', { replyLength: reply.length });
             return [...filtered, { role: 'bot', text: reply, buttons }];
           });
-        } catch {
+        } catch (err) {
+          console.error('CHAT_UNKNOWN_CALL_AI_ERROR', { message: err instanceof Error ? err.message : 'unknown' });
           setMessages(prev => {
             const filtered = prev.filter(m => !(m.role === 'bot' && m.text === 'جاري كتابة الرد...'));
             return [...filtered, { role: 'bot', text: 'أقدر أساعدك في متابعة الطلب، مشاهدة التوثيق، أو طلب خدمات أضحيتي من المتجر. اختر ما يناسبك من الخيارات التالية.', buttons: MAIN_OPTIONS }];
