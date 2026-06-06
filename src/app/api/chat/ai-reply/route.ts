@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
 
     if (!checkRateLimit(ip)) {
       return NextResponse.json(
-        { error: 'الطلبات كثيرة حاليًا، حاول بعد قليل أو تواصل معنا عبر واتساب.', buttons: [{ label: '🟢 واتساب', action: 'support' }] },
+        { error: 'الطلبات كثيرة حاليًا، حاول بعد قليل أو تواصل معنا عبر واتساب.', buttons: [{ label: 'واتساب', action: 'support', isWhatsApp: true }] },
         { status: 429 }
       );
     }
@@ -101,9 +101,12 @@ export async function POST(req: NextRequest) {
     const apiKey = process.env.GEMINI_API_KEY;
 
     console.log('AI_REPLY_ENV_CHECK', {
-      enabled: aiEnabled,
-      hasKey: !!apiKey,
-      envValue: process.env.AI_FALLBACK_ENABLED,
+      enabledRaw: String(process.env.AI_FALLBACK_ENABLED),
+      enabledIsTrue: process.env.AI_FALLBACK_ENABLED === 'true',
+      hasGeminiKey: Boolean(apiKey),
+      geminiKeyLength: apiKey?.length ?? 0,
+      geminiKeyPrefix: apiKey ? String(apiKey).substring(0, 4) : 'MISSING',
+      allEnvKeys: Object.keys(process.env).filter(k => k.includes('AI') || k.includes('GEMINI')),
     });
 
     if (!aiEnabled || !apiKey) {
