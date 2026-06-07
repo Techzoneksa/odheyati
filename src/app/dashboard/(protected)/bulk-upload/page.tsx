@@ -27,7 +27,10 @@ export default function BulkUploadPage() {
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState<UploadResult | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileDataRef = useRef<Map<string, File>>(new Map());
 
   function extractOrderNumber(filename: string): string | null {
     const nameWithoutExt = filename.replace(/\.[^/.]+$/, '');
@@ -46,6 +49,7 @@ export default function BulkUploadPage() {
 
   function handleFileSelect(selectedFiles: FileList | null) {
     if (!selectedFiles) return;
+    setUploadError(null);
 
     const newFiles: ParsedFile[] = [];
     
@@ -80,6 +84,8 @@ export default function BulkUploadPage() {
         fileType,
         message,
       });
+
+      fileDataRef.current.set(file.name, file);
     }
     
     setFiles(prev => [...prev, ...newFiles]);
@@ -92,60 +98,90 @@ export default function BulkUploadPage() {
   }
 
   function handleRemove(index: number) {
+    const removed = files[index];
+    if (removed) fileDataRef.current.delete(removed.name);
     setFiles(prev => prev.filter((_, i) => i !== index));
   }
 
   function handleClearAll() {
     setFiles([]);
     setResult(null);
+    setUploadError(null);
+    setUploadProgress(null);
+    fileDataRef.current.clear();
   }
 
   async function handleUpload() {
     if (files.length === 0) return;
+    setUploadError(null);
     
+    const readyFiles = files.filter(f => f.status === 'ready');
+    if (readyFiles.length === 0) {
+      setUploadError('لا توجد ملفات جاهزة للرفع');
+      return;
+    }
+
     setUploading(true);
     setResult(null);
-    
+    setUploadProgress(`جاري الرفع (${readyFiles.length} ملف)...`);
+
     try {
       const formData = new FormData();
+      let appended = 0;
       
-      const readyFiles = files.filter(f => f.status === 'ready');
-      if (readyFiles.length === 0) {
-        alert('لا توجد ملفات جاهزة للرفع');
-        setUploading(false);
-        return;
-      }
-      
-      for (const file of Array.from(document.querySelectorAll('input[type="file"]'))) {
-        const input = file as HTMLInputElement;
-        if (input.files) {
-          for (const f of Array.from(input.files)) {
-            const ext = '.' + (f.name.split('.').pop()?.toLowerCase() || '');
-            const allowedExts = ['.mp4', '.mov', '.webm', '.jpg', '.jpeg', '.png', '.webp'];
-            if (allowedExts.includes(ext)) {
-              formData.append('files', f);
-            }
-          }
+      for (const pf of readyFiles) {
+        const actualFile = fileDataRef.current.get(pf.name);
+        if (actualFile) {
+          formData.append('files', actualFile);
+          appended++;
         }
       }
-      
+
+      if (appended === 0) {
+        setUploadError('لم يتم العثور على الملفات في الذاكرة. حاول إعادة اختيارها.');
+        setUploading(false);
+        setUploadProgress(null);
+        return;
+      }
+
       const res = await fetch('/api/dashboard/bulk-upload', {
         method: 'POST',
+        credentials: 'include',
         body: formData,
       });
-      
-      if (res.ok) {
-        const data = await res.json();
-        setResult(data);
-        setFiles([]);
-      } else {
-        alert('حدث خطأ في الرفع');
+
+      const responseText = await res.text();
+      let data: any = null;
+      try { data = JSON.parse(responseText); } catch {}
+
+      if (res.status === 401) {
+        setUploadError('انتهت الجلسة، سجل الدخول مرة أخرى');
+        router.push('/dashboard/login');
+        setUploading(false);
+        setUploadProgress(null);
+        return;
       }
-    } catch {
-      alert('حدث خطأ في الرفع');
+
+      if (!res.ok) {
+        const msg = data?.error || data?.message || responseText || `رمز الخطأ: ${res.status}`;
+        console.error('BULK_UPLOAD_ERROR', { status: res.status, message: msg });
+        setUploadError(`تعذر رفع الملفات: ${msg}`);
+        setUploading(false);
+        setUploadProgress(null);
+        return;
+      }
+
+      setResult(data);
+      setFiles([]);
+      fileDataRef.current.clear();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'خطأ غير معروف';
+      console.error('BULK_UPLOAD_EXCEPTION', { message: msg });
+      setUploadError(`حدث خطأ في الاتصال: ${msg}`);
     }
     
     setUploading(false);
+    setUploadProgress(null);
   }
 
   const readyCount = files.filter(f => f.status === 'ready').length;
@@ -219,6 +255,22 @@ export default function BulkUploadPage() {
             </button>
           </div>
         </div>
+
+        {uploadError && (
+          <div className="card p-4 mb-6" style={{ background: '#fce4ec', border: '1px solid #ef9a9a' }}>
+            <p style={{ color: '#c62828', fontSize: 14, direction: 'rtl' }}>
+              ⚠️ {uploadError}
+            </p>
+          </div>
+        )}
+
+        {uploadProgress && (
+          <div className="card p-4 mb-6" style={{ background: '#e3f2fd', border: '1px solid #90caf9' }}>
+            <p style={{ color: '#1565c0', fontSize: 14, direction: 'rtl' }}>
+              {uploadProgress}
+            </p>
+          </div>
+        )}
 
         {files.length > 0 && (
           <div className="card p-6 mb-6">

@@ -2,9 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { uploadFile, FileType } from '@/lib/r2';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
+
 
 interface ParsedFile {
   originalName: string;
@@ -273,7 +271,8 @@ const fileRecord = await prisma.proofFile.create({
 
     return NextResponse.json(results);
   } catch (error) {
-    console.error('Bulk upload error');
-    return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
+    const msg = error instanceof Error ? error.message : 'خطأ غير معروف في الخادم';
+    console.error('BULK_UPLOAD_API_ERROR', { msg });
+    return NextResponse.json({ error: `فشل الرفع: ${msg}` }, { status: 500 });
   }
 }
