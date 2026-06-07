@@ -85,16 +85,24 @@ export default function OrderDetailsClient({ order, proofUrl }: Props) {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('orderId', order.id);
-        formData.append('type', file.type.startsWith('video') ? 'VIDEO' : 'IMAGE');
 
-        await fetch('/api/upload', {
+        const res = await fetch('/api/upload', {
           method: 'POST',
+          credentials: 'include',
           body: formData,
         });
+
+        if (!res.ok) {
+          const text = await res.text();
+          let data;
+          try { data = JSON.parse(text); } catch {}
+          throw new Error(data?.error || text || `فشل الرفع برمز ${res.status}`);
+        }
       }
       router.refresh();
     } catch (error) {
-      console.error('Upload error:', error);
+      const msg = error instanceof Error ? error.message : 'حدث خطأ في الرفع';
+      setStatusMessage({ type: 'error', text: msg });
     }
     setUploading(false);
   }
@@ -104,10 +112,21 @@ export default function OrderDetailsClient({ order, proofUrl }: Props) {
     setDeleting(fileId);
 
     try {
-      await fetch(`/api/files/${fileId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/files/${fileId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); } catch {}
+        throw new Error(data?.error || text || `فشل الحذف برمز ${res.status}`);
+      }
       router.refresh();
     } catch (error) {
-      console.error('Delete error:', error);
+      const msg = error instanceof Error ? error.message : 'حدث خطأ في الحذف';
+      setStatusMessage({ type: 'error', text: msg });
     }
     setDeleting(null);
   }
