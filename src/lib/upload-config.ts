@@ -92,6 +92,11 @@ function validateFileType(filename: string, mimeType: string): { valid: boolean;
 }
 
 function checkMagicBytes(buffer: Buffer, mimeType: string): boolean {
+  if (mimeType === 'video/mp4' || mimeType === 'video/quicktime') {
+    if (buffer.length < 8) return false;
+    return buffer[4] === 0x66 && buffer[5] === 0x74 && buffer[6] === 0x79 && buffer[7] === 0x70;
+  }
+
   const signatures = UPLOAD_CONFIG.MAGIC_BYTES.get(mimeType);
   if (!signatures) return false;
 
