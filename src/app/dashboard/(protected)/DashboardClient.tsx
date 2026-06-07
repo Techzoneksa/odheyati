@@ -88,10 +88,12 @@ export default function DashboardClient() {
   const [liveResults, setLiveResults] = useState<Order[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [liveLoading, setLiveLoading] = useState(false);
+  const [chatEnabled, setChatEnabled] = useState(true);
 
   useEffect(() => {
     fetchStats();
     fetchOrders(1);
+    fetch('/api/settings/chat').then(r => r.json()).then(d => setChatEnabled(d.enabled)).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -251,13 +253,35 @@ export default function DashboardClient() {
                 تصدير Excel
               </a>
             </div>
-            <button
+            <div className="flex items-center gap-3">
+              <button
+                onClick={async () => {
+                  const next = !chatEnabled;
+                  setChatEnabled(next);
+                  await fetch('/api/settings/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: next }),
+                  });
+                }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '8px 16px', borderRadius: 8, border: 'none',
+                  background: chatEnabled ? '#e8f5e9' : '#fce4ec',
+                  color: chatEnabled ? '#2e7d32' : '#c62828',
+                  cursor: 'pointer', fontSize: 14, fontWeight: 600,
+                }}
+              >
+                {chatEnabled ? '💬 الدردشة مفعّلة' : '💬 الدردشة موقوفة'}
+              </button>
+              <button
               onClick={handleLogout}
               disabled={logoutLoading}
               className="text-text-secondary hover:text-primary transition-colors text-sm py-2 sm:py-0"
             >
               {logoutLoading ? 'جاري الخروج...' : 'تسجيل الخروج'}
             </button>
+            </div>
           </div>
         </div>
       </header>
