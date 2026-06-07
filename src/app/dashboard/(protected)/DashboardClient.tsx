@@ -85,11 +85,49 @@ export default function DashboardClient() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [apiError, setApiError] = useState('');
+  const [liveResults, setLiveResults] = useState<Order[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [liveLoading, setLiveLoading] = useState(false);
 
   useEffect(() => {
     fetchStats();
     fetchOrders(1);
   }, []);
+
+  useEffect(() => {
+    const handler = () => setShowDropdown(false);
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, []);
+
+  useEffect(() => {
+    const query = orderNumberSearch.trim() || mobileSearch.trim() || customerNameSearch.trim();
+    if (query.length < 3) {
+      setLiveResults([]);
+      setShowDropdown(false);
+      return;
+    }
+
+    const timeout = setTimeout(async () => {
+      setLiveLoading(true);
+      const params = new URLSearchParams();
+      if (orderNumberSearch.trim()) params.set('orderNumber', orderNumberSearch.trim());
+      if (mobileSearch.trim()) params.set('mobile', mobileSearch.trim());
+      if (customerNameSearch.trim()) params.set('customerName', customerNameSearch.trim());
+      params.set('page', '1');
+
+      const res = await fetch(`/api/orders?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        const orders = Array.isArray(data) ? data : (data.orders ?? []);
+        setLiveResults(orders.slice(0, 8));
+        setShowDropdown(orders.length > 0);
+      }
+      setLiveLoading(false);
+    }, 350);
+
+    return () => clearTimeout(timeout);
+  }, [orderNumberSearch, mobileSearch, customerNameSearch]);
 
   async function fetchStats() {
     const res = await fetch('/api/orders/stats');
@@ -238,7 +276,7 @@ export default function DashboardClient() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="card p-4 sm:p-6 mb-6">
+        <form onSubmit={handleSubmit} className="card p-4 sm:p-6 mb-6" style={{ position: 'relative' }}>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4">
             <div>
               <label className="label">بحث برقم الطلب</label>
@@ -306,6 +344,47 @@ export default function DashboardClient() {
               </select>
             </div>
           </div>
+
+          {showDropdown && (
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{
+                position: 'absolute', top: '100%', right: 0, left: 0,
+                background: '#fff', border: '1px solid #e8d8cc',
+                borderRadius: 8, boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                zIndex: 100, maxHeight: 320, overflowY: 'auto',
+              }}
+            >
+              {liveResults.map(order => (
+                <div
+                  key={order.id}
+                  onClick={() => {
+                    window.open(`/dashboard/orders/${order.id}`, '_self');
+                    setShowDropdown(false);
+                  }}
+                  style={{
+                    padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f0e8e0',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    direction: 'rtl',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#fff8f2')}
+                  onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
+                >
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{order.orderNumber}</div>
+                    <div style={{ fontSize: 12, color: '#666' }}>{order.customerName} • {order.customerMobile?.slice(-4).padStart(order.customerMobile.length, '*')}</div>
+                  </div>
+                  <span style={{
+                    fontSize: 11, padding: '3px 8px', borderRadius: 12,
+                    background: order.proofStatus === 'READY' ? '#e8f5e9' : '#fff3e0',
+                    color: order.proofStatus === 'READY' ? '#2e7d32' : '#e65100',
+                  }}>
+                    {order.proofStatus === 'READY' ? 'جاهز' : order.proofStatus === 'PENDING' ? 'قيد التجهيز' : order.proofStatus}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="flex flex-col sm:flex-row gap-3">
             <button
