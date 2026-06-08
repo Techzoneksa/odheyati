@@ -31,7 +31,7 @@ const url = new URL(key);
 key = url.pathname;
 }
 } catch {
-// نكمل بالقيمة الأصلية إذا كانت ليست URL صالحًا.
+// إذا لم تكن القيمة رابطًا صالحًا، نستخدمها كما هي.
 }
 
 key = key.split('?')[0];
@@ -41,7 +41,7 @@ key = key.replace(/^/+/, '');
 try {
 key = decodeURIComponent(key);
 } catch {
-// نتجاهل فشل فك الترميز ونستخدم المفتاح كما هو.
+// نتجاهل فشل فك الترميز.
 }
 
 return key;
@@ -77,16 +77,18 @@ originalFileName
 const uniqueCandidates = Array.from(new Set(candidates));
 
 for (const candidate of uniqueCandidates) {
-if (await fileExists(candidate)) {
-if (candidate !== originalKey) {
-console.warn('LEGACY_STORAGE_KEY_RESOLVED', {
-fileId: file.id,
-orderId: file.orderId,
-type: file.type,
-});
-}
+const exists = await fileExists(candidate);
 
 ```
+if (exists) {
+  if (candidate !== originalKey) {
+    console.warn('LEGACY_STORAGE_KEY_RESOLVED', {
+      fileId: file.id,
+      orderId: file.orderId,
+      type: file.type,
+    });
+  }
+
   return candidate;
 }
 ```
@@ -97,12 +99,14 @@ return null;
 }
 
 function safeDownloadName(value: string): string {
-return String(value || 'file')
+const safeName = String(value || 'file')
 .replace(/[\r\n"]/g, '')
-.trim() || 'file';
+.trim();
+
+return safeName || 'file';
 }
 
-export async function GET(request: Request, { params }: Props) {
+export async function GET(_request: Request, { params }: Props) {
 try {
 const { id } = await params;
 
@@ -207,7 +211,7 @@ return NextResponse.json(
 }
 }
 
-export async function DELETE(request: Request, { params }: Props) {
+export async function DELETE(_request: Request, { params }: Props) {
 const session = await getSession();
 
 if (!session) {
