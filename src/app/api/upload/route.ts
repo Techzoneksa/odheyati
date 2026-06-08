@@ -159,16 +159,16 @@ export async function POST(request: Request) {
     } catch (dbError) {
       console.error('UPLOAD_DB_FAILURE', {
         orderId,
-        storageKeyPrefix: storageKey.slice(0, 30),
+        storageKeyPrefix: actualStorageKey.slice(0, 30),
         error: dbError instanceof Error ? dbError.message : 'Unknown',
       });
 
       try {
         const { deleteFile } = await import('@/lib/r2');
-        await deleteFile(storageKey);
+        await deleteFile(actualStorageKey);
       } catch (cleanupError) {
         console.error('UPLOAD_CLEANUP_FAILURE', {
-          storageKeyPrefix: storageKey.slice(0, 30),
+          storageKeyPrefix: actualStorageKey.slice(0, 30),
           error: cleanupError instanceof Error ? cleanupError.message : 'Unknown',
         });
       }
