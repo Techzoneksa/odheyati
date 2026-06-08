@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import {
-fileExists,
-getSignedDownloadUrl,
-} from '@/lib/r2';
+import { fileExists, getSignedDownloadUrl } from '@/lib/r2';
 import { getSession } from '@/lib/auth';
 import { UPLOAD_CONFIG } from '@/lib/upload-config';
 
@@ -20,71 +17,125 @@ fileName: string;
 uploadedById: string | null;
 }
 
-function getFileNameFromKey(storageKey: string): string {
-const cleanKey = String(storageKey || '')
-.trim()
-.split('?')[0];
+function normalizeStorageKey(value: string): string {
+let key = String(value || '').trim();
 
-const parts = cleanKey
+if (!key) {
+return '';
+}
+
+if (
+key.toLowerCase().startsWith('https://') ||
+key.toLowerCase().startsWith('http://')
+) {
+try {
+const parsedUrl = new URL(key);
+key = parsedUrl.pathname;
+} catch {
+// Keep the original value when it is not a valid URL.
+}
+}
+
+const queryIndex = key.indexOf('?');
+
+if (queryIndex >= 0) {
+key = key.slice(0, queryIndex);
+}
+
+const backslash = String.fromCharCode(92);
+key = key.split(backslash).join('/');
+
+while (key.startsWith('/')) {
+key = key.slice(1);
+}
+
+try {
+key = decodeURIComponent(key);
+} catch {
+// Keep the key unchanged if decoding fails.
+}
+
+return key;
+}
+
+function getFileNameFromKey(value: string): string {
+const normalizedValue = normalizeStorageKey(value);
+
+if (!normalizedValue) {
+return '';
+}
+
+const parts = normalizedValue
 .split('/')
-.filter(Boolean);
+.filter(function (part) {
+return Boolean(part);
+});
 
-return parts.length > 0
-? parts[parts.length - 1]
-: '';
+if (parts.length === 0) {
+return '';
+}
+
+return parts[parts.length - 1];
 }
 
 async function resolveStorageKey(
 file: ProofFileForStorage,
 orderNumber: string
 ): Promise<string | null> {
-const currentKey = String(file.storageKey || '')
-.trim()
-.replace(/^/+/, '');
+const currentKey = normalizeStorageKey(file.storageKey);
 
-if (currentKey && await fileExists(currentKey)) {
-return currentKey;
+if (currentKey) {
+const currentKeyExists = await fileExists(currentKey);
+
+```
+if (currentKeyExists) {
+  return currentKey;
+}
+```
+
 }
 
 const keyFileName = getFileNameFromKey(currentKey);
 const originalFileName = getFileNameFromKey(file.fileName);
 
-const fileName =
-keyFileName ||
-originalFileName;
+const fileName = keyFileName || originalFileName;
 
 if (!fileName) {
 return null;
 }
 
-const folder =
-file.type === 'IMAGE'
-? 'images'
-: 'videos';
+const folder = file.type === 'IMAGE' ? 'images' : 'videos';
 
 const legacyKey =
-`proofs/${orderNumber}/${folder}/${fileName}`;
+'proofs/' +
+orderNumber +
+'/' +
+folder +
+'/' +
+fileName;
 
-if (await fileExists(legacyKey)) {
+const legacyKeyExists = await fileExists(legacyKey);
+
+if (!legacyKeyExists) {
+return null;
+}
+
 console.warn('LEGACY_STORAGE_KEY_RESOLVED', {
 fileId: file.id,
 orderId: file.orderId,
 type: file.type,
 });
 
-```
 return legacyKey;
-```
-
-}
-
-return null;
 }
 
 function getSafeFileName(fileName: string): string {
-const safeName = String(fileName || 'file')
-.replace(/[\r\n"]/g, '')
-.trim();
+let safeName = String(fileName || 'file');
+
+safeName = safeName.split('\r').join('');
+safeName = safeName.split('\n').join('');
+safeName = safeName.split('"').join('');
+safeName = safeName.trim();
 
 return safeName || 'file';
 }
@@ -98,14 +149,15 @@ const { id } = await params;
 
 ```
 const file = await prisma.proofFile.findUnique({
-  where: { id },
+  where: {
+    id,
+  },
   select: {
     id: true,
     orderId: true,
     type: true,
     storageKey: true,
     fileName: true,
-    mimeType: true,
     uploadedById: true,
   },
 });
@@ -114,6 +166,7 @@ if (!file) {
   return NextResponse.json(
     {
       success: false,
+      code: 'FILE_RECORD_NOT_FOUND',
       error: 'الملف غير موجود',
     },
     {
@@ -135,6 +188,7 @@ if (!order) {
   return NextResponse.json(
     {
       success: false,
+      code: 'ORDER_NOT_FOUND',
       error: 'الطلب المرتبط بالملف غير موجود',
     },
     {
@@ -143,11 +197,10 @@ if (!order) {
   );
 }
 
-const resolvedStorageKey =
-  await resolveStorageKey(
-    file,
-    String(order.orderNumber)
-  );
+const resolvedStorageKey = await resolveStorageKey(
+  file,
+  String(order.orderNumber)
+);
 
 if (!resolvedStorageKey) {
   console.warn('FILE_MISSING_IN_R2', {
@@ -168,14 +221,12 @@ if (!resolvedStorageKey) {
   );
 }
 
-const signedUrl =
-  await getSignedDownloadUrl(
-    resolvedStorageKey,
-    UPLOAD_CONFIG.SIGNED_URL_EXPIRY_SECONDS
-  );
+const signedUrl = await getSignedDownloadUrl(
+  resolvedStorageKey,
+  UPLOAD_CONFIG.SIGNED_URL_EXPIRY_SECONDS
+);
 
-const response =
-  NextResponse.redirect(signedUrl);
+const response = NextResponse.redirect(signedUrl);
 
 response.headers.set(
   'X-Content-Type-Options',
@@ -184,7 +235,9 @@ response.headers.set(
 
 response.headers.set(
   'Content-Disposition',
-  `inline; filename="${getSafeFileName(file.fileName)}"`
+  'inline; filename="' +
+    getSafeFileName(file.fileName) +
+    '"'
 );
 
 response.headers.set(
@@ -207,6 +260,7 @@ error instanceof Error
 return NextResponse.json(
   {
     success: false,
+    code: 'FILE_FETCH_FAILED',
     error: 'تعذر تحميل الملف، حاول مرة أخرى',
   },
   {
@@ -255,7 +309,9 @@ status: 403,
 const { id } = await params;
 
 const file = await prisma.proofFile.findUnique({
-where: { id },
+where: {
+id,
+},
 select: {
 id: true,
 orderId: true,
@@ -315,8 +371,7 @@ status: 404,
 );
 }
 
-const resolvedStorageKey =
-await resolveStorageKey(
+const resolvedStorageKey = await resolveStorageKey(
 file,
 String(order.orderNumber)
 );
@@ -334,8 +389,7 @@ status: 404,
 }
 
 try {
-const { deleteFile } =
-await import('@/lib/r2');
+const { deleteFile } = await import('@/lib/r2');
 
 ```
 await deleteFile(resolvedStorageKey);
@@ -365,7 +419,9 @@ return NextResponse.json(
 }
 
 await prisma.proofFile.delete({
-where: { id },
+where: {
+id,
+},
 });
 
 console.log('FILE_DELETED', {
