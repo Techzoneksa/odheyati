@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { fileExists, getSignedDownloadUrl } from '@/lib/r2';
+import {
+fileExists,
+getSignedDownloadUrl,
+} from '@/lib/r2';
 import { getSession } from '@/lib/auth';
 import { UPLOAD_CONFIG } from '@/lib/upload-config';
 
@@ -8,123 +11,69 @@ interface Props {
 params: Promise<{ id: string }>;
 }
 
-interface StoredFile {
+interface ProofFileForStorage {
 id: string;
 orderId: string;
 type: string;
 storageKey: string;
 fileName: string;
-mimeType: string | null;
 uploadedById: string | null;
 }
 
-function normalizeStoredKey(value: string): string {
-let key = String(value || '').trim();
+function getFileNameFromKey(storageKey: string): string {
+const cleanKey = String(storageKey || '')
+.trim()
+.split('?')[0];
 
-if (!key) {
-return '';
-}
+const parts = cleanKey
+.split('/')
+.filter(Boolean);
 
-try {
-const lowerKey = key.toLowerCase();
-
-```
-if (
-  lowerKey.startsWith('https://') ||
-  lowerKey.startsWith('http://')
-) {
-  const parsedUrl = new URL(key);
-  key = parsedUrl.pathname;
-}
-```
-
-} catch {
-// نستخدم القيمة الأصلية إذا لم تكن رابطًا صالحًا.
-}
-
-const queryIndex = key.indexOf('?');
-
-if (queryIndex !== -1) {
-key = key.slice(0, queryIndex);
-}
-
-key = key.split('\').join('/');
-
-while (key.startsWith('/')) {
-key = key.slice(1);
-}
-
-try {
-key = decodeURIComponent(key);
-} catch {
-// نستخدم المفتاح كما هو إذا فشل فك الترميز.
-}
-
-return key;
-}
-
-function getBaseName(value: string): string {
-const normalized = normalizeStoredKey(value);
-const parts = normalized.split('/').filter(Boolean);
-
-if (parts.length === 0) {
-return '';
-}
-
-return parts[parts.length - 1];
-}
-
-function getStorageFolder(fileType: string): 'images' | 'videos' {
-return fileType === 'IMAGE' ? 'images' : 'videos';
+return parts.length > 0
+? parts[parts.length - 1]
+: '';
 }
 
 async function resolveStorageKey(
-file: StoredFile,
+file: ProofFileForStorage,
 orderNumber: string
 ): Promise<string | null> {
-const originalKey = normalizeStoredKey(file.storageKey);
-const folder = getStorageFolder(file.type);
+const currentKey = String(file.storageKey || '')
+.trim()
+.replace(/^/+/, '');
 
-const storageFileName = getBaseName(originalKey);
-const originalFileName = getBaseName(file.fileName);
-
-const candidates: string[] = [];
-
-if (originalKey) {
-candidates.push(originalKey);
+if (currentKey && await fileExists(currentKey)) {
+return currentKey;
 }
 
-if (storageFileName) {
-candidates.push(
-`proofs/${orderNumber}/${folder}/${storageFileName}`
-);
+const keyFileName = getFileNameFromKey(currentKey);
+const originalFileName = getFileNameFromKey(file.fileName);
+
+const fileName =
+keyFileName ||
+originalFileName;
+
+if (!fileName) {
+return null;
 }
 
-if (originalFileName) {
-candidates.push(
-`proofs/${orderNumber}/${folder}/${originalFileName}`
-);
-}
+const folder =
+file.type === 'IMAGE'
+? 'images'
+: 'videos';
 
-const uniqueCandidates = Array.from(new Set(candidates));
+const legacyKey =
+`proofs/${orderNumber}/${folder}/${fileName}`;
 
-for (const candidate of uniqueCandidates) {
-const exists = await fileExists(candidate);
+if (await fileExists(legacyKey)) {
+console.warn('LEGACY_STORAGE_KEY_RESOLVED', {
+fileId: file.id,
+orderId: file.orderId,
+type: file.type,
+});
 
 ```
-if (!exists) {
-  continue;
-}
-
-if (candidate !== originalKey) {
-  console.warn('LEGACY_STORAGE_KEY_RESOLVED', {
-    fileId: file.id,
-    orderId: file.orderId,
-    type: file.type,
-  });
-}
-
-return candidate;
+return legacyKey;
 ```
 
 }
@@ -132,14 +81,9 @@ return candidate;
 return null;
 }
 
-function safeDownloadName(value: string): string {
-const safeName = String(value || 'file')
-.split('\r')
-.join('')
-.split('\n')
-.join('')
-.split('"')
-.join('')
+function getSafeFileName(fileName: string): string {
+const safeName = String(fileName || 'file')
+.replace(/[\r\n"]/g, '')
 .trim();
 
 return safeName || 'file';
@@ -170,15 +114,18 @@ if (!file) {
   return NextResponse.json(
     {
       success: false,
-      code: 'FILE_RECORD_NOT_FOUND',
       error: 'الملف غير موجود',
     },
-    { status: 404 }
+    {
+      status: 404,
+    }
   );
 }
 
 const order = await prisma.order.findUnique({
-  where: { id: file.orderId },
+  where: {
+    id: file.orderId,
+  },
   select: {
     orderNumber: true,
   },
@@ -188,17 +135,19 @@ if (!order) {
   return NextResponse.json(
     {
       success: false,
-      code: 'ORDER_NOT_FOUND',
       error: 'الطلب المرتبط بالملف غير موجود',
     },
-    { status: 404 }
+    {
+      status: 404,
+    }
   );
 }
 
-const resolvedStorageKey = await resolveStorageKey(
-  file,
-  String(order.orderNumber)
-);
+const resolvedStorageKey =
+  await resolveStorageKey(
+    file,
+    String(order.orderNumber)
+  );
 
 if (!resolvedStorageKey) {
   console.warn('FILE_MISSING_IN_R2', {
@@ -213,16 +162,20 @@ if (!resolvedStorageKey) {
       code: 'FILE_NOT_FOUND_IN_STORAGE',
       error: 'ملف التوثيق غير متوفر حاليًا',
     },
-    { status: 404 }
+    {
+      status: 404,
+    }
   );
 }
 
-const signedUrl = await getSignedDownloadUrl(
-  resolvedStorageKey,
-  UPLOAD_CONFIG.SIGNED_URL_EXPIRY_SECONDS
-);
+const signedUrl =
+  await getSignedDownloadUrl(
+    resolvedStorageKey,
+    UPLOAD_CONFIG.SIGNED_URL_EXPIRY_SECONDS
+  );
 
-const response = NextResponse.redirect(signedUrl);
+const response =
+  NextResponse.redirect(signedUrl);
 
 response.headers.set(
   'X-Content-Type-Options',
@@ -231,7 +184,7 @@ response.headers.set(
 
 response.headers.set(
   'Content-Disposition',
-  `inline; filename="${safeDownloadName(file.fileName)}"`
+  `inline; filename="${getSafeFileName(file.fileName)}"`
 );
 
 response.headers.set(
@@ -254,10 +207,11 @@ error instanceof Error
 return NextResponse.json(
   {
     success: false,
-    code: 'FILE_FETCH_FAILED',
     error: 'تعذر تحميل الملف، حاول مرة أخرى',
   },
-  { status: 500 }
+  {
+    status: 500,
+  }
 );
 ```
 
@@ -276,17 +230,25 @@ return NextResponse.json(
 success: false,
 error: 'انتهت الجلسة، سجل الدخول مرة أخرى',
 },
-{ status: 401 }
+{
+status: 401,
+}
 );
 }
 
-if (!UPLOAD_CONFIG.ALLOWED_ROLES.includes(session.role)) {
+if (
+!UPLOAD_CONFIG.ALLOWED_ROLES.includes(
+session.role
+)
+) {
 return NextResponse.json(
 {
 success: false,
 error: 'ليس لديك صلاحية لحذف الملفات',
 },
-{ status: 403 }
+{
+status: 403,
+}
 );
 }
 
@@ -294,6 +256,14 @@ const { id } = await params;
 
 const file = await prisma.proofFile.findUnique({
 where: { id },
+select: {
+id: true,
+orderId: true,
+type: true,
+storageKey: true,
+fileName: true,
+uploadedById: true,
+},
 });
 
 if (!file) {
@@ -302,7 +272,9 @@ return NextResponse.json(
 success: false,
 error: 'الملف غير موجود',
 },
-{ status: 404 }
+{
+status: 404,
+}
 );
 }
 
@@ -316,12 +288,16 @@ return NextResponse.json(
 success: false,
 error: 'ليس لديك صلاحية لحذف هذا الملف',
 },
-{ status: 403 }
+{
+status: 403,
+}
 );
 }
 
 const order = await prisma.order.findUnique({
-where: { id: file.orderId },
+where: {
+id: file.orderId,
+},
 select: {
 orderNumber: true,
 },
@@ -333,11 +309,14 @@ return NextResponse.json(
 success: false,
 error: 'الطلب المرتبط بالملف غير موجود',
 },
-{ status: 404 }
+{
+status: 404,
+}
 );
 }
 
-const resolvedStorageKey = await resolveStorageKey(
+const resolvedStorageKey =
+await resolveStorageKey(
 file,
 String(order.orderNumber)
 );
@@ -348,12 +327,15 @@ return NextResponse.json(
 success: false,
 error: 'ملف التخزين غير موجود، لم يتم حذف السجل',
 },
-{ status: 404 }
+{
+status: 404,
+}
 );
 }
 
 try {
-const { deleteFile } = await import('@/lib/r2');
+const { deleteFile } =
+await import('@/lib/r2');
 
 ```
 await deleteFile(resolvedStorageKey);
@@ -374,7 +356,9 @@ return NextResponse.json(
     success: false,
     error: 'تعذر حذف الملف من التخزين',
   },
-  { status: 500 }
+  {
+    status: 500,
+  }
 );
 ```
 
