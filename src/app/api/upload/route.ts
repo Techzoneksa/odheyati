@@ -126,7 +126,7 @@ export async function POST(request: Request) {
     const storageKey = `orders/${order.orderNumber}/${crypto.randomUUID()}${ext}`;
     const fileType = (UPLOAD_CONFIG.MIME_TYPES.IMAGE as readonly string[]).includes(detectedMime) ? 'IMAGE' : 'VIDEO';
 
-    await uploadFile(order.orderNumber, fileType, buffer, storageKey.split('/').pop()!, detectedMime);
+    const { storageKey: actualStorageKey } = await uploadFile(order.orderNumber, fileType, buffer, storageKey.split('/').pop()!, detectedMime);
 
     try {
       const maxSortOrder = await prisma.proofFile.aggregate({
@@ -138,7 +138,7 @@ export async function POST(request: Request) {
         data: {
           orderId,
           type: fileType,
-          storageKey,
+          storageKey: actualStorageKey,
           fileName: safeName,
           mimeType: detectedMime,
           size: buffer.length,
