@@ -24,15 +24,17 @@ if (!key) {
 return '';
 }
 
+const lowerKey = key.toLowerCase();
+
 if (
-key.toLowerCase().startsWith('https://') ||
-key.toLowerCase().startsWith('http://')
+lowerKey.startsWith('https://') ||
+lowerKey.startsWith('http://')
 ) {
 try {
 const parsedUrl = new URL(key);
 key = parsedUrl.pathname;
 } catch {
-// Keep the original value when it is not a valid URL.
+// نحتفظ بالقيمة الأصلية إذا لم تكن رابطًا صالحًا.
 }
 }
 
@@ -52,7 +54,7 @@ key = key.slice(1);
 try {
 key = decodeURIComponent(key);
 } catch {
-// Keep the key unchanged if decoding fails.
+// نحتفظ بالمفتاح كما هو إذا فشل فك الترميز.
 }
 
 return key;
@@ -97,14 +99,16 @@ if (currentKeyExists) {
 
 const keyFileName = getFileNameFromKey(currentKey);
 const originalFileName = getFileNameFromKey(file.fileName);
-
 const fileName = keyFileName || originalFileName;
 
 if (!fileName) {
 return null;
 }
 
-const folder = file.type === 'IMAGE' ? 'images' : 'videos';
+const folder =
+file.type === 'IMAGE'
+? 'images'
+: 'videos';
 
 const legacyKey =
 'proofs/' +
@@ -197,10 +201,11 @@ if (!order) {
   );
 }
 
-const resolvedStorageKey = await resolveStorageKey(
-  file,
-  String(order.orderNumber)
-);
+const resolvedStorageKey =
+  await resolveStorageKey(
+    file,
+    String(order.orderNumber)
+  );
 
 if (!resolvedStorageKey) {
   console.warn('FILE_MISSING_IN_R2', {
@@ -221,12 +226,14 @@ if (!resolvedStorageKey) {
   );
 }
 
-const signedUrl = await getSignedDownloadUrl(
-  resolvedStorageKey,
-  UPLOAD_CONFIG.SIGNED_URL_EXPIRY_SECONDS
-);
+const signedUrl =
+  await getSignedDownloadUrl(
+    resolvedStorageKey,
+    UPLOAD_CONFIG.SIGNED_URL_EXPIRY_SECONDS
+  );
 
-const response = NextResponse.redirect(signedUrl);
+const response =
+  NextResponse.redirect(signedUrl);
 
 response.headers.set(
   'X-Content-Type-Options',
@@ -371,7 +378,8 @@ status: 404,
 );
 }
 
-const resolvedStorageKey = await resolveStorageKey(
+const resolvedStorageKey =
+await resolveStorageKey(
 file,
 String(order.orderNumber)
 );
@@ -389,7 +397,8 @@ status: 404,
 }
 
 try {
-const { deleteFile } = await import('@/lib/r2');
+const { deleteFile } =
+await import('@/lib/r2');
 
 ```
 await deleteFile(resolvedStorageKey);
