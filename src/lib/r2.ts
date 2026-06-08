@@ -1,10 +1,9 @@
-```ts
 import {
-  S3Client,
-  PutObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
+  PutObjectCommand,
+  S3Client,
 } from '@aws-sdk/client-s3';
 
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -81,10 +80,7 @@ export async function fileExists(storageKey: string): Promise<boolean> {
           ).$metadata?.httpStatusCode
         : undefined;
 
-    const errorName =
-      error instanceof Error
-        ? error.name
-        : '';
+    const errorName = error instanceof Error ? error.name : '';
 
     if (
       statusCode === 404 ||
@@ -118,4 +114,3 @@ export function getPublicUrl(storageKey: string): string {
 
   return `${normalizedBase}/${normalizedKey}`;
 }
-```
