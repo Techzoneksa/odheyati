@@ -17,10 +17,10 @@ interface ParsedFile {
   size?: number;
 }
 
-function extractOrderNumber(filename: string): string | null {
-  const nameWithoutExt = filename.replace(/\.[^/.]+$/, '');
-  const match = nameWithoutExt.match(/(\d{5,})/);
-  return match ? match[1] : null;
+function extractOrderNumber(fileName: string): string | null {
+  const baseName = fileName.trim().replace(/\.[^/.]+$/, '');
+  const match = baseName.match(/\d+/);
+  return match ? match[0] : null;
 }
 
 function getFileType(mime: string): FileType | null {
@@ -276,6 +276,7 @@ export async function POST(request: Request) {
       }
 
       const orderNumber = extractOrderNumber(file.name);
+      console.log('BULK_PARSE', { fileName: file.name, orderNumber });
       if (!orderNumber) {
         parsedFiles.push({
           originalName: file.name,

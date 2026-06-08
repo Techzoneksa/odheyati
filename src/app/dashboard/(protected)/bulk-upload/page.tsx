@@ -32,10 +32,10 @@ export default function BulkUploadPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fileDataRef = useRef<Map<string, File>>(new Map());
 
-  function extractOrderNumber(filename: string): string | null {
-    const nameWithoutExt = filename.replace(/\.[^/.]+$/, '');
-    const match = nameWithoutExt.match(/(\d{5,})/);
-    return match ? match[1] : null;
+  function extractOrderNumber(fileName: string): string | null {
+    const baseName = fileName.trim().replace(/\.[^/.]+$/, '');
+    const match = baseName.match(/\d+/);
+    return match ? match[0] : null;
   }
 
   function getFileType(name: string): string | null {
