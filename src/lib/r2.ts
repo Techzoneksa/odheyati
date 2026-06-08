@@ -1,4 +1,12 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+```ts
+import {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+} from '@aws-sdk/client-s3';
+
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const r2Client = new S3Client({
@@ -34,7 +42,10 @@ export async function uploadFile(
     })
   );
 
-  return { storageKey, size: file.length };
+  return {
+    storageKey,
+    size: file.length,
+  };
 }
 
 export async function deleteFile(storageKey: string): Promise<void> {
@@ -46,15 +57,65 @@ export async function deleteFile(storageKey: string): Promise<void> {
   );
 }
 
-export async function getSignedDownloadUrl(storageKey: string, expiresIn = 3600): Promise<string> {
+export async function fileExists(storageKey: string): Promise<boolean> {
+  try {
+    await r2Client.send(
+      new HeadObjectCommand({
+        Bucket: BUCKET,
+        Key: storageKey,
+      })
+    );
+
+    return true;
+  } catch (error: unknown) {
+    const statusCode =
+      typeof error === 'object' &&
+      error !== null &&
+      '$metadata' in error
+        ? (
+            error as {
+              $metadata?: {
+                httpStatusCode?: number;
+              };
+            }
+          ).$metadata?.httpStatusCode
+        : undefined;
+
+    const errorName =
+      error instanceof Error
+        ? error.name
+        : '';
+
+    if (
+      statusCode === 404 ||
+      errorName === 'NotFound' ||
+      errorName === 'NoSuchKey'
+    ) {
+      return false;
+    }
+
+    throw error;
+  }
+}
+
+export async function getSignedDownloadUrl(
+  storageKey: string,
+  expiresIn = 3600
+): Promise<string> {
   const command = new GetObjectCommand({
     Bucket: BUCKET,
     Key: storageKey,
   });
 
-  return getSignedUrl(r2Client, command, { expiresIn });
+  return getSignedUrl(r2Client, command, {
+    expiresIn,
+  });
 }
 
 export function getPublicUrl(storageKey: string): string {
-  return `${PUBLIC_BASE}/${storageKey}`;
+  const normalizedBase = PUBLIC_BASE.replace(/\/+$/, '');
+  const normalizedKey = storageKey.replace(/^\/+/, '');
+
+  return `${normalizedBase}/${normalizedKey}`;
 }
+```
