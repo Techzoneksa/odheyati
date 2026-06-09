@@ -79,6 +79,7 @@ export default function OrderDetailsClient({ order, proofUrl }: Props) {
   async function handleFileUpload(fileList: FileList | null) {
     if (!fileList || fileList.length === 0) return;
     setUploading(true);
+    setStatusMessage(null);
 
     try {
       for (const file of Array.from(fileList)) {
@@ -99,17 +100,21 @@ export default function OrderDetailsClient({ order, proofUrl }: Props) {
           throw new Error(data?.error || text || `فشل الرفع برمز ${res.status}`);
         }
       }
+      // تصحيح: تحديث الصفحة بعد انتهاء رفع جميع الملفات وليس داخل الحلقة التكرارية
       router.refresh();
+      setStatusMessage({ type: 'success', text: 'تم رفع الملفات بنجاح' });
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'حدث خطأ في الرفع';
       setStatusMessage({ type: 'error', text: msg });
+    } finally {
+      setUploading(false);
     }
-    setUploading(false);
   }
 
   async function handleDeleteFile(fileId: string) {
     if (!confirm('هل أنت متأكد من حذف هذا الملف؟')) return;
     setDeleting(fileId);
+    setStatusMessage(null);
 
     try {
       const res = await fetch(`/api/files/${fileId}`, {
@@ -124,11 +129,13 @@ export default function OrderDetailsClient({ order, proofUrl }: Props) {
         throw new Error(data?.error || text || `فشل الحذف برمز ${res.status}`);
       }
       router.refresh();
+      setStatusMessage({ type: 'success', text: 'تم حذف الملف بنجاح' });
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'حدث خطأ في الحذف';
       setStatusMessage({ type: 'error', text: msg });
+    } finally {
+      setDeleting(null);
     }
-    setDeleting(null);
   }
 
   async function handleStatusChange(newStatus: string) {
@@ -151,21 +158,30 @@ export default function OrderDetailsClient({ order, proofUrl }: Props) {
     } catch (error) {
       console.error('Status update error:', error);
       setStatusMessage({ type: 'error', text: 'تعذر تحديث الحالة، حاول مرة أخرى' });
+    } finally {
+      setUpdatingStatus(false);
     }
-    setUpdatingStatus(false);
   }
 
   async function handleCopyLink() {
-    await navigator.clipboard.writeText(proofUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(proofUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy link:', err);
+    }
   }
 
   const images = order.files.filter((f) => f.type === 'IMAGE');
   const videos = order.files.filter((f) => f.type === 'VIDEO');
 
+  function getFileViewUrl(fileId: string) {
+    return `/api/files/${encodeURIComponent(fileId)}`;
+  }
+
   return (
-    <div className="min-h-screen bg-background-cream">
+    <div className="min-h-screen bg-background-cream" dir="rtl">
       <header className="bg-background-white border-b border-border sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
@@ -228,9 +244,9 @@ export default function OrderDetailsClient({ order, proofUrl }: Props) {
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {images.map((image) => (
                     <div key={image.id} className="relative group">
-                      <Image src={image.url} alt={image.fileName} width={300} height={200} className="w-full h-40 object-cover rounded-lg" />
+                      <Image src={getFileViewUrl(image.id)} alt={image.fileName} width={300} height={200} className="w-full h-40 object-cover rounded-lg" unoptimized />
                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-lg transition-opacity">
-                        <a href={image.url} target="_blank" rel="noopener noreferrer" className="text-white text-sm mx-1">
+                        <a href={getFileViewUrl(image.id)} target="_blank" rel="noopener noreferrer" className="text-white text-sm mx-1">
                           عرض
                         </a>
                         <button
@@ -278,7 +294,7 @@ export default function OrderDetailsClient({ order, proofUrl }: Props) {
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <a href={video.url} target="_blank" rel="noopener noreferrer" className="text-primary text-sm hover:underline">
+                        <a href={getFileViewUrl(video.id)} target="_blank" rel="noopener noreferrer" className="text-primary text-sm hover:underline">
                           عرض
                         </a>
                         <button
@@ -317,15 +333,11 @@ export default function OrderDetailsClient({ order, proofUrl }: Props) {
                 value={order.proofStatus}
                 onChange={(e) => handleStatusChange(e.target.value)}
                 disabled={updatingStatus}
-                className="input-field mb-4"
+                className="input-field mb-4 w-full"
               >
-                <option value="PENDING">بانتظار التنفيذ</option>
-                <option value="IN_PROGRESS">قيد التنفيذ</option>
-                <option value="SLAUGHTERED">تم الذبح</option>
-                <option value="MEDIA_UPLOADED">تم رفع الملفات</option>
-                <option value="READY">جاهز للعميل</option>
-                <option value="VIEWED">تمت المشاهدة</option>
-                <option value="CANCELLED">ملغي</option>
+                {Object.entries(statusLabels).map(([key, label]) => (
+                  <option key={key} value={key}>{label}</option>
+                ))}
               </select>
               <p className="text-sm text-text-secondary">
                 حالة سلة: {order.sallaStatus || '-'}
