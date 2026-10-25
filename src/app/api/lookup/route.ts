@@ -48,6 +48,46 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
+    if (body.orderNumber !== undefined) {
+      // Exact match only (no partial search), and no customer name in the
+      // response, so guessing numbers reveals as little as possible.
+      const orderNumber = String(body.orderNumber)
+        .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+        .replace(/[\s#]/g, '');
+
+      if (!/^[A-Za-z0-9-]{3,30}$/.test(orderNumber)) {
+        return NextResponse.json({ error: 'رقم الطلب غير صالح' }, { status: 400 });
+      }
+
+      // Orders moved from Salla to Zid can also be found by their Zid number.
+      const orders = await prisma.order.findMany({
+        where: {
+          OR: [
+            { orderNumber: { equals: orderNumber, mode: 'insensitive' } },
+            { zidOrderId: orderNumber },
+          ],
+        },
+        select: { id: true, orderNumber: true, proofStatus: true, proofToken: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      });
+
+      if (orders.length === 0) {
+        return NextResponse.json({ error: 'لم نجد توثيقًا' }, { status: 404 });
+      }
+
+      return NextResponse.json({
+        found: true,
+        orders: orders.map(o => ({
+          id: o.id,
+          orderNumber: o.orderNumber,
+          proofStatus: o.proofStatus,
+          createdAt: o.createdAt.toISOString(),
+          proofToken: o.proofToken,
+        })),
+      });
+    }
+
     if (body.email) {
       const parsed = emailLookupSchema.safeParse(body);
 

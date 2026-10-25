@@ -14,10 +14,11 @@ const countries = [
 
 function TrackContent() {
   const searchParams = useSearchParams();
-  const [searchType, setSearchType] = useState<'mobile' | 'email'>('mobile');
+  const [searchType, setSearchType] = useState<'order' | 'mobile' | 'email'>('order');
   const [countryCode, setCountryCode] = useState('966');
   const [mobile, setMobile] = useState('');
   const [email, setEmail] = useState('');
+  const [orderNumber, setOrderNumber] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [orders, setOrders] = useState<{id: string; orderNumber: string; proofStatus: string; createdAt: string; proofToken: string}[]>([]);
@@ -27,6 +28,52 @@ function TrackContent() {
     setError('');
     setOrders([]);
     setLoading(true);
+
+    if (searchType === 'order') {
+      const cleanOrderNumber = orderNumber.replace(/[\s#]/g, '');
+      if (cleanOrderNumber.length < 3) {
+        setError('رقم الطلب غير صالح');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/lookup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderNumber: cleanOrderNumber }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || data.error) {
+          setError('لم نجد طلبًا بهذا الرقم. تأكد من رقم الطلب وحاول مرة أخرى.');
+          setLoading(false);
+          return;
+        }
+
+        const readyStatuses = ['READY', 'VIEWED', 'MEDIA_UPLOADED'];
+
+        if (data.orders && data.orders.length > 1) {
+          setOrders(data.orders);
+          setLoading(false);
+          return;
+        }
+
+        const order = data.orders?.[0];
+        if (order && order.proofToken && readyStatuses.includes(order.proofStatus)) {
+          window.location.href = `/proof/${order.proofToken}`;
+        } else if (order) {
+          setError('طلبك موجود لدينا وجاري تجهيز التوثيق حاليًا. سيظهر رابط مشاهدة التوثيق فور اكتمال رفع الصور أو الفيديوهات.');
+        } else {
+          setError('لم نجد طلبًا بهذا الرقم. تأكد من رقم الطلب وحاول مرة أخرى.');
+        }
+      } catch {
+        setError('حدث خطأ، حاول مرة أخرى');
+      }
+      setLoading(false);
+      return;
+    }
 
     if (searchType === 'email') {
       if (!email || !email.includes('@')) {
@@ -118,14 +165,19 @@ function TrackContent() {
       setError('حدث خطأ، حاول مرة أخرى');
     }
     setLoading(false);
-  }, [mobile, countryCode, email, searchType]);
+  }, [mobile, countryCode, email, orderNumber, searchType]);
 
   useEffect(() => {
     const urlCountryCode = searchParams.get('countryCode');
     const urlMobile = searchParams.get('mobile');
     const urlEmail = searchParams.get('email');
+    const urlOrder = searchParams.get('order');
 
-    if (urlEmail) {
+    if (urlOrder) {
+      setSearchType('order');
+      setOrderNumber(urlOrder);
+      setAutoSearchExecuted(true);
+    } else if (urlEmail) {
       setSearchType('email');
       setEmail(urlEmail);
       setAutoSearchExecuted(true);
@@ -164,7 +216,10 @@ function TrackContent() {
 
   useEffect(() => {
     if (autoSearchExecuted) {
-      if (searchType === 'email' && email) {
+      if (searchType === 'order' && orderNumber) {
+        handleSubmit();
+        setAutoSearchExecuted(false);
+      } else if (searchType === 'email' && email) {
         handleSubmit();
         setAutoSearchExecuted(false);
       } else if (searchType === 'mobile' && mobile.length >= 7) {
@@ -172,12 +227,14 @@ function TrackContent() {
         setAutoSearchExecuted(false);
       }
     }
-  }, [autoSearchExecuted, handleSubmit, searchType, email, mobile]);
+  }, [autoSearchExecuted, handleSubmit, searchType, email, mobile, orderNumber]);
 
   return (
     <div className="card p-6">
       <p className="text-center text-text-secondary mb-6">
-        {searchType === 'email'
+        {searchType === 'order'
+          ? 'أدخل رقم طلبك لمشاهدة توثيقه'
+          : searchType === 'email'
           ? 'أدخل إيميلك لمشاهدة توثيقات طلباتك'
           : 'أدخل رقم جوالك لمشاهدة توثيقات طلباتك'}
       </p>
@@ -185,30 +242,58 @@ function TrackContent() {
       <div className="flex gap-2 mb-6">
         <button
           type="button"
+          onClick={() => setSearchType('order')}
+          className={`flex-1 py-2 px-2 rounded-lg font-medium text-sm whitespace-nowrap transition-colors ${
+            searchType === 'order'
+              ? 'bg-primary text-white'
+              : 'bg-background-beige text-text-secondary hover:bg-border'
+          }`}
+        >
+          🔢 رقم الطلب
+        </button>
+        <button
+          type="button"
           onClick={() => setSearchType('mobile')}
-          className={`flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-colors ${
+          className={`flex-1 py-2 px-2 rounded-lg font-medium text-sm whitespace-nowrap transition-colors ${
             searchType === 'mobile'
               ? 'bg-primary text-white'
               : 'bg-background-beige text-text-secondary hover:bg-border'
           }`}
         >
-          📱 بحث بالجوال
+          📱 الجوال
         </button>
         <button
           type="button"
           onClick={() => setSearchType('email')}
-          className={`flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-colors ${
+          className={`flex-1 py-2 px-2 rounded-lg font-medium text-sm whitespace-nowrap transition-colors ${
             searchType === 'email'
               ? 'bg-primary text-white'
               : 'bg-background-beige text-text-secondary hover:bg-border'
           }`}
         >
-          📧 بحث بالإيميل
+          📧 الإيميل
         </button>
       </div>
 
       <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="space-y-4">
-        {searchType === 'email' ? (
+        {searchType === 'order' ? (
+          <div>
+            <label className="label">رقم الطلب</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={orderNumber}
+              onChange={(e) => setOrderNumber(e.target.value.slice(0, 30))}
+              className="input-field"
+              placeholder="مثال: 262190392"
+              dir="ltr"
+              required
+            />
+            <p className="text-xs text-text-secondary mt-1">
+              تجده في رسالة تأكيد الطلب أو في صفحة طلباتك في المتجر
+            </p>
+          </div>
+        ) : searchType === 'email' ? (
           <div>
             <label className="label">البريد الإلكتروني</label>
             <input
