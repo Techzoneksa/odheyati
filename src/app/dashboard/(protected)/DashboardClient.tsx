@@ -252,12 +252,8 @@ export default function DashboardClient() {
                 </svg>
                 تصدير Excel
               </a>
-              <a
-                href="/dashboard/zid"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-neutral text-white text-xs font-medium rounded-lg hover:bg-neutral-dark transition-colors whitespace-nowrap"
-              >
-                ربط زد
-              </a>
+              {/* "ربط زد" (/dashboard/zid) is hidden until the store subscribes to
+                  Zid's Direct Linking (APIs) add-on; the page itself still works. */}
             </div>
             <div className="flex items-center gap-3">
               <button

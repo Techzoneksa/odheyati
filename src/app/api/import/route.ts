@@ -109,14 +109,10 @@ export async function POST(request: Request) {
     const sheet = workbook.Sheets[sheetName];
     const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as string[][];
 
-    if (platform === 'ZID') {
-      const zidHeaders = (jsonData[0] || []).map(h => String(h ?? '').trim());
-      if (!isZidExport(zidHeaders)) {
-        return NextResponse.json(
-          { error: 'هذا ليس ملف تصدير طلبات من زد. صدّر الملف من زد: الطلبات ← تصدير' },
-          { status: 400 }
-        );
-      }
+    // "زد" accepts both the raw Zid export and the simple template
+    // (رقم الطلب / اسم العميل / رقم الجوال / البريد الإلكتروني); the template
+    // goes through the same rules as before.
+    if (platform === 'ZID' && isZidExport((jsonData[0] || []).map(h => String(h ?? '').trim()))) {
       return NextResponse.json(await importZidExport(jsonData));
     }
 
@@ -126,7 +122,7 @@ export async function POST(request: Request) {
     // as the order number and creates junk orders such as "تم التوصيل".
     if (isZidExport(headers)) {
       return NextResponse.json(
-        { error: 'هذا ملف تصدير من زد. اختر «زد» في مصدر الملف ثم ارفعه مرة أخرى' },
+        { error: 'هذا ملف تصدير من زد، ولا يمكن قراءته بقواعد سلة' },
         { status: 400 }
       );
     }
@@ -136,7 +132,8 @@ export async function POST(request: Request) {
       rows: [],
     };
 
-    if (platform === 'SALLA') {
+    if (platform === 'SALLA' || platform === 'ZID') {
+      const importedItemName = platform === 'ZID' ? 'طلب مستورد من زد' : 'طلب مستورد من سلة';
       const orderCol = headers.findIndex(h => h.includes('رقم الطلب') || h.includes('order'));
       const statusCol = headers.findIndex(h => h.includes('حالة') || h.includes('status'));
       const nameCol = headers.findIndex(h => h.includes('اسم') || h.includes('name'));
@@ -253,7 +250,7 @@ export async function POST(request: Request) {
               await prisma.orderItem.create({
                 data: {
                   orderId: existingOrder.id,
-                  productName: 'طلب مستورد من سلة',
+                  productName: importedItemName,
                   quantity: 1,
                   price: parsedAmount,
                 },
@@ -309,7 +306,7 @@ export async function POST(request: Request) {
             await prisma.orderItem.create({
               data: {
                 orderId: newOrder.id,
-                productName: 'طلب مستورد من سلة',
+                productName: importedItemName,
                 quantity: 1,
                 price: parsedAmount,
               },

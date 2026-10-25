@@ -46,7 +46,7 @@ export default function ImportPage() {
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<ImportReport | null>(null);
   const [error, setError] = useState('');
-  const [platform, setPlatform] = useState<'SALLA' | 'SHOPIFY' | 'ZID'>('SALLA');
+  const [platform, setPlatform] = useState<'SALLA' | 'SHOPIFY' | 'ZID'>('ZID');
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -81,17 +81,19 @@ export default function ImportPage() {
         const sheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as string[][];
 
-        if (platform === 'ZID') {
-          const zidHeaders = (jsonData[0] || []).map(h => String(h ?? '').trim());
+        // A raw Zid export (English column names) is previewed per order; any
+        // other file is read as the simple template below.
+        const zidHeaders = (jsonData[0] || []).map(h => String(h ?? '').trim());
+        if (zidHeaders.includes('id') && zidHeaders.includes('customer_name') && zidHeaders.includes('customer_mobile')) {
+          if (platform !== 'ZID') {
+            setError('هذا ملف تصدير من زد، ولا يمكن قراءته بقواعد سلة');
+            return;
+          }
           const col = (name: string) => zidHeaders.indexOf(name);
           const c = {
             id: col('id'), status: col('order_status'), note: col('customer_note'), name: col('customer_name'),
             mobile: col('customer_mobile'), email: col('customer_email'), total: col('total'),
           };
-          if (c.id === -1 || c.name === -1 || c.mobile === -1) {
-            setError('هذا ليس ملف تصدير طلبات من زد. صدّر الملف من زد: الطلبات ← تصدير');
-            return;
-          }
 
           // One order can span several rows (one per product); show each once.
           const seen = new Set<string>();
@@ -112,12 +114,6 @@ export default function ImportPage() {
             });
           }
           setPreview(rows);
-          return;
-        }
-
-        const firstRow = (jsonData[0] || []).map(h => String(h ?? '').trim());
-        if (firstRow.includes('id') && firstRow.includes('customer_mobile')) {
-          setError('هذا ملف تصدير من زد. اختر «زد» في مصدر الملف ثم ارفعه مرة أخرى');
           return;
         }
 
@@ -238,17 +234,6 @@ export default function ImportPage() {
           <h2 className="text-lg font-semibold text-text-primary mb-4">مصدر الملف</h2>
 
           <div className="flex gap-4 mb-4">
-            <label className={`flex items-center gap-2 cursor-pointer px-4 py-2 rounded-lg border ${platform === 'SALLA' ? 'border-primary bg-primary/10 text-primary' : 'border-border text-text-secondary'}`}>
-              <input
-                type="radio"
-                name="platform"
-                value="SALLA"
-                checked={platform === 'SALLA'}
-                onChange={() => handlePlatformChange('SALLA')}
-                className="hidden"
-              />
-              سلة
-            </label>
             <label className={`flex items-center gap-2 cursor-pointer px-4 py-2 rounded-lg border ${platform === 'ZID' ? 'border-primary bg-primary/10 text-primary' : 'border-border text-text-secondary'}`}>
               <input
                 type="radio"
@@ -325,22 +310,14 @@ export default function ImportPage() {
 
           <div className="mt-4 p-4 bg-background-beige rounded-lg">
             <h3 className="text-sm font-semibold text-text-primary mb-2">تعليمات الاستيراد</h3>
-            {platform === 'ZID' ? (
             <div className="text-sm text-text-secondary">
-              <p className="mb-2">ارفع ملف التصدير من زد كما هو (الطلبات ← تصدير) بدون أي تعديل.</p>
-              <p>طلبات سلة المنقولة إلى زد لا تُستورد مرة ثانية؛ تُربط فقط برقمها في زد وتبقى توثيقاتها كما هي.</p>
-              <p>طلبات متجر زد الجديدة تُضاف بروابط توثيق، ولا يُكتب أبدًا فوق طلب سلة قديم بنفس الرقم.</p>
-            </div>
-            ) : (
-            <div className="text-sm text-text-secondary">
-              <p className="mb-2">يرجى رفع ملف الطلبات المصدر من سلة.</p>
-              <p><strong>الأعمدة المطلوبة:</strong> رقم الطلب، اسم العميل</p>
-              <p><strong>الأعمدة الاختيارية:</strong> حالة الطلب، المبلغ، البريد الإلكتروني</p>
+              <p><strong>الأعمدة المطلوبة:</strong> رقم الطلب، اسم العميل، ورقم الجوال أو البريد الإلكتروني</p>
+              <p className="mt-1">أسماء الأعمدة في الصف الأول من الملف.</p>
+              <p className="mt-1">يمكن أيضًا رفع ملف التصدير من زد (الطلبات ← تصدير) كما هو بدون تعديل.</p>
               <p className="mt-2 text-xs text-yellow-700 bg-yellow-50 p-2 rounded border border-yellow-200">
                 ملاحظة: إذا لم يكن للعميل رقم جوال، أضف بريده الإلكتروني في عمود البريد الإلكتروني — سيتمكن من البحث عن توثيقه عبر الإيميل
               </p>
             </div>
-            )}
           </div>
 
           {error && (
