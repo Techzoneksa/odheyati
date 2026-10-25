@@ -51,6 +51,8 @@ model Order {
   customerMobileLast4 String
   customerEmail    String?
   sallaStatus     String?
+  zidOrderId      String?     @unique
+  zidStatus       String?
   proofStatus     ProofStatus @default(PENDING)
   proofToken       String      @unique @default(cuid())
   createdAt        DateTime    @default(now())
@@ -115,7 +117,24 @@ model WebhookLog {
   payload   Json
   processed Boolean  @default(false)
   error     String?
+  dedupKey  String?  @unique
   createdAt DateTime @default(now())
 
   @@map("webhook_logs")
+}
+
+// Tokens are stored encrypted (src/lib/zid/crypto.ts), never in plain text.
+model ZidConnection {
+  id                 String   @id @default(cuid())
+  storeId            String   @unique
+  storeName          String?
+  authorizationToken String
+  managerToken       String
+  refreshToken       String
+  expiresAt          DateTime
+  webhooksError      String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("zid_connections")
 }
