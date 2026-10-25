@@ -63,7 +63,7 @@ export async function POST(request: Request) {
       const orders = await prisma.order.findMany({
         where: {
           customerEmail: {
-            contains: email.trim().toLowerCase(),
+            equals: email.trim().toLowerCase(),
             mode: 'insensitive',
           },
         },

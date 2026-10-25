@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { prisma } from './prisma';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 export interface SessionUser {
   id: string;
@@ -12,8 +13,31 @@ export interface SessionUser {
 const SESSION_COOKIE = 'adahi_session';
 const SESSION_MAX_AGE = 60 * 60 * 24 * 7;
 
+function getSessionSecret(): string {
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (!secret) {
+    throw new Error('NEXTAUTH_SECRET is not configured');
+  }
+  return secret;
+}
+
+function signPayload(payload: string): string {
+  return crypto.createHmac('sha256', getSessionSecret()).update(payload).digest('base64url');
+}
+
+// The cookie is "<base64url(json)>.<hmac>". Without the signature anyone could
+// write their own cookie (e.g. role: ADMIN) and get into the dashboard.
 export async function createSession(user: SessionUser): Promise<string> {
-  const sessionData = JSON.stringify(user);
+  const payload = Buffer.from(
+    JSON.stringify({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      exp: Date.now() + SESSION_MAX_AGE * 1000,
+    })
+  ).toString('base64url');
+  const sessionData = `${payload}.${signPayload(payload)}`;
   const cookieStore = await cookies();
   
   cookieStore.set(SESSION_COOKIE, sessionData, {
@@ -36,7 +60,28 @@ export async function getSession(): Promise<SessionUser | null> {
   }
 
   try {
-    return JSON.parse(sessionCookie.value) as SessionUser;
+    const [payload, signature] = sessionCookie.value.split('.');
+    if (!payload || !signature) {
+      return null;
+    }
+
+    const expected = Buffer.from(signPayload(payload));
+    const actual = Buffer.from(signature);
+    if (expected.length !== actual.length || !crypto.timingSafeEqual(expected, actual)) {
+      return null;
+    }
+
+    const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    if (typeof data.exp !== 'number' || data.exp < Date.now()) {
+      return null;
+    }
+
+    return {
+      id: data.id,
+      email: data.email,
+      name: data.name,
+      role: data.role,
+    };
   } catch {
     return null;
   }

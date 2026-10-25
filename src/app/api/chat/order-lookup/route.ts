@@ -125,50 +125,29 @@ export async function POST(request: Request) {
         console.log('CHAT_LOOKUP_EXACT_ORDER_FOUND:', exactByOrder[0].orderNumber);
         orders = exactByOrder;
       } else {
-        console.log('CHAT_LOOKUP_MODE: numeric fallback to contains search across orderNumber + mobile');
+        // Exact full-number match only. Partial (contains / last digits)
+        // matching returned other customers' orders and proof links.
+        console.log('CHAT_LOOKUP_MODE: numeric fallback to exact mobile match');
 
-        const mobileVariations: string[] = [];
         let clean = digitsOnly;
-
         if (clean.startsWith('00')) {
           clean = clean.substring(2);
-        } else if (clean.startsWith('+')) {
-          clean = clean.substring(1);
         }
 
-        mobileVariations.push(clean);
-        if (clean.startsWith('0') && clean.length > 9) {
-          mobileVariations.push(clean.substring(1));
-        }
-        if (clean.length >= 9) {
-          mobileVariations.push(clean.slice(-9));
-        }
-        if (clean.length >= 7) {
-          mobileVariations.push(clean.slice(-7));
-        }
-        if (clean.startsWith('966') && clean.length > 9) {
-          mobileVariations.push(clean.substring(3));
+        let local = clean;
+        if (local.startsWith('966')) {
+          local = local.substring(3);
+        } else if (local.startsWith('0')) {
+          local = local.substring(1);
         }
 
-        const variationsDeduped = Array.from(new Set(mobileVariations));
-        console.log('CHAT_LOOKUP_MOBILE_VARIATIONS:', variationsDeduped);
-
-        const mobileOrConditions = variationsDeduped.flatMap(v => [
-          { customerMobile: { contains: v } },
-          { customerMobileLast4: { contains: v.slice(-4) } },
-        ]);
-
-        const orderOrConditions = [
-          { orderNumber: { contains: digitsOnly } },
-          { orderNumber: { contains: rawQuery } },
-        ];
+        const mobileVariations = local.length >= 9
+          ? Array.from(new Set([clean, local, `0${local}`, `966${local}`, `+966${local}`]))
+          : [];
 
         orders = await prisma.order.findMany({
           where: {
-            OR: [
-              ...orderOrConditions,
-              ...mobileOrConditions,
-            ],
+            customerMobile: { in: mobileVariations },
           },
           select: {
             orderNumber: true,
@@ -186,14 +165,13 @@ export async function POST(request: Request) {
         console.log('CHAT_LOOKUP_NUMERIC_RESULT:', orders.length, orders.map(o => o.orderNumber));
       }
     } else {
-      console.log('CHAT_LOOKUP_MODE: text search on orderNumber + customerName');
+      // Exact order number only; searching by customer name exposed other
+      // customers' names and proof links.
+      console.log('CHAT_LOOKUP_MODE: exact order number match');
 
       orders = await prisma.order.findMany({
         where: {
-          OR: [
-            { orderNumber: { contains: rawQuery, mode: 'insensitive' } },
-            { customerName: { contains: rawQuery, mode: 'insensitive' } },
-          ],
+          orderNumber: { equals: rawQuery, mode: 'insensitive' },
         },
         select: {
           orderNumber: true,
