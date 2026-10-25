@@ -46,7 +46,7 @@ export default function ImportPage() {
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<ImportReport | null>(null);
   const [error, setError] = useState('');
-  const [platform, setPlatform] = useState<'SALLA' | 'SHOPIFY'>('SALLA');
+  const [platform, setPlatform] = useState<'SALLA' | 'SHOPIFY' | 'ZID'>('SALLA');
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -80,6 +80,46 @@ export default function ImportPage() {
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as string[][];
+
+        if (platform === 'ZID') {
+          const zidHeaders = (jsonData[0] || []).map(h => String(h ?? '').trim());
+          const col = (name: string) => zidHeaders.indexOf(name);
+          const c = {
+            id: col('id'), status: col('order_status'), note: col('customer_note'), name: col('customer_name'),
+            mobile: col('customer_mobile'), email: col('customer_email'), total: col('total'),
+          };
+          if (c.id === -1 || c.name === -1 || c.mobile === -1) {
+            setError('هذا ليس ملف تصدير طلبات من زد. صدّر الملف من زد: الطلبات ← تصدير');
+            return;
+          }
+
+          // One order can span several rows (one per product); show each once.
+          const seen = new Set<string>();
+          const rows: OrderRow[] = [];
+          for (let i = 1; i < jsonData.length && rows.length < 20; i++) {
+            const row = jsonData[i] || [];
+            const id = String(row[c.id] ?? '').trim();
+            if (!id || seen.has(id)) continue;
+            seen.add(id);
+            const sallaNo = String(row[c.note] ?? '').match(/رقم الطلب:\s*(\d+)/);
+            rows.push({
+              orderNumber: id,
+              sallaStatus: sallaNo ? `منقول من سلة (${sallaNo[1]})` : String(row[c.status] ?? '').trim(),
+              customerName: String(row[c.name] ?? '').trim(),
+              customerMobile: String(row[c.mobile] ?? '').trim(),
+              customerEmail: c.email !== -1 ? String(row[c.email] ?? '').trim() : '',
+              amount: c.total !== -1 ? String(row[c.total] ?? '').trim() : '',
+            });
+          }
+          setPreview(rows);
+          return;
+        }
+
+        const firstRow = (jsonData[0] || []).map(h => String(h ?? '').trim());
+        if (firstRow.includes('id') && firstRow.includes('customer_mobile')) {
+          setError('هذا ملف تصدير من زد. اختر «زد» في مصدر الملف ثم ارفعه مرة أخرى');
+          return;
+        }
 
         const headerRowIndex = (jsonData[0] && jsonData[0].some(h => h && h.toString().includes('رقم الطلب')))
           ? 0
@@ -140,7 +180,7 @@ export default function ImportPage() {
     processFile(droppedFile);
   }
 
-  function handlePlatformChange(newPlatform: 'SALLA' | 'SHOPIFY') {
+  function handlePlatformChange(newPlatform: 'SALLA' | 'SHOPIFY' | 'ZID') {
     setPlatform(newPlatform);
     setPreview([]);
     setFile(null);
@@ -156,7 +196,7 @@ export default function ImportPage() {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('platform', 'SALLA');
+      formData.append('platform', platform);
 
       const res = await fetch('/api/import', {
         method: 'POST',
@@ -209,7 +249,18 @@ export default function ImportPage() {
               />
               سلة
             </label>
-            
+            <label className={`flex items-center gap-2 cursor-pointer px-4 py-2 rounded-lg border ${platform === 'ZID' ? 'border-primary bg-primary/10 text-primary' : 'border-border text-text-secondary'}`}>
+              <input
+                type="radio"
+                name="platform"
+                value="ZID"
+                checked={platform === 'ZID'}
+                onChange={() => handlePlatformChange('ZID')}
+                className="hidden"
+              />
+              زد
+            </label>
+
 </div>
         </div>
 
@@ -274,6 +325,13 @@ export default function ImportPage() {
 
           <div className="mt-4 p-4 bg-background-beige rounded-lg">
             <h3 className="text-sm font-semibold text-text-primary mb-2">تعليمات الاستيراد</h3>
+            {platform === 'ZID' ? (
+            <div className="text-sm text-text-secondary">
+              <p className="mb-2">ارفع ملف التصدير من زد كما هو (الطلبات ← تصدير) بدون أي تعديل.</p>
+              <p>طلبات سلة المنقولة إلى زد لا تُستورد مرة ثانية؛ تُربط فقط برقمها في زد وتبقى توثيقاتها كما هي.</p>
+              <p>طلبات متجر زد الجديدة تُضاف بروابط توثيق، ولا يُكتب أبدًا فوق طلب سلة قديم بنفس الرقم.</p>
+            </div>
+            ) : (
             <div className="text-sm text-text-secondary">
               <p className="mb-2">يرجى رفع ملف الطلبات المصدر من سلة.</p>
               <p><strong>الأعمدة المطلوبة:</strong> رقم الطلب، اسم العميل</p>
@@ -282,6 +340,7 @@ export default function ImportPage() {
                 ملاحظة: إذا لم يكن للعميل رقم جوال، أضف بريده الإلكتروني في عمود البريد الإلكتروني — سيتمكن من البحث عن توثيقه عبر الإيميل
               </p>
             </div>
+            )}
           </div>
 
           {error && (

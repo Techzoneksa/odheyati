@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import * as XLSX from 'xlsx';
+import { importZidExport, isZidExport } from '@/lib/zid/excel';
 
 interface RowResult {
   row: number;
@@ -108,7 +109,27 @@ export async function POST(request: Request) {
     const sheet = workbook.Sheets[sheetName];
     const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as string[][];
 
+    if (platform === 'ZID') {
+      const zidHeaders = (jsonData[0] || []).map(h => String(h ?? '').trim());
+      if (!isZidExport(zidHeaders)) {
+        return NextResponse.json(
+          { error: 'هذا ليس ملف تصدير طلبات من زد. صدّر الملف من زد: الطلبات ← تصدير' },
+          { status: 400 }
+        );
+      }
+      return NextResponse.json(await importZidExport(jsonData));
+    }
+
     const headers = jsonData[0].map(h => h.toString().trim());
+
+    // Read with the Salla rules, a Zid export's "order_status" column is taken
+    // as the order number and creates junk orders such as "تم التوصيل".
+    if (isZidExport(headers)) {
+      return NextResponse.json(
+        { error: 'هذا ملف تصدير من زد. اختر «زد» في مصدر الملف ثم ارفعه مرة أخرى' },
+        { status: 400 }
+      );
+    }
 
     const report: ImportReport = {
       summary: { added: 0, updated: 0, skipped: 0, failed: 0, warnings: 0 },
