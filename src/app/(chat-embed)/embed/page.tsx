@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 export default function ChatEmbedPage() {
   return (
-    <div style={{ margin: 0, padding: 0, background: '#fff8f2', minHeight: '100vh' }}>
+    <div style={{ margin: 0, padding: 0, background: '#f9f1e1', minHeight: '100vh' }}>
       <style>{`
         .chat-fab { display: none !important; }
         .chat-window {

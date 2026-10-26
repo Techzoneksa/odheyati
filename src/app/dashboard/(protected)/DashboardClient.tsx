@@ -376,7 +376,7 @@ export default function DashboardClient() {
               onClick={e => e.stopPropagation()}
               style={{
                 position: 'absolute', top: '100%', right: 0, left: 0,
-                background: '#fff', border: '1px solid #e8d8cc',
+                background: '#fff', border: '1px solid #e7d9b8',
                 borderRadius: 8, boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
                 zIndex: 100, maxHeight: 320, overflowY: 'auto',
               }}
@@ -389,11 +389,11 @@ export default function DashboardClient() {
                     setShowDropdown(false);
                   }}
                   style={{
-                    padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f0e8e0',
+                    padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f1e8d2',
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                     direction: 'rtl',
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.background = '#fff8f2')}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#f9f1e1')}
                   onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
                 >
                   <div>

@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   description: 'نظام توثيق طلبات متجر أضحيتي',
   icons: {
     icon: '/favicon.png',
+    apple: '/apple-touch-icon.png',
   },
 };
 

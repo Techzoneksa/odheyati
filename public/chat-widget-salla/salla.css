@@ -9,20 +9,20 @@
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: #973131;
+  background: #14351e;
   border: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 16px rgba(151,49,49,0.45);
+  box-shadow: 0 4px 16px rgba(20,53,30,0.45);
   animation: od-pulse 2s infinite;
 }
 
 @keyframes od-pulse {
-  0%   { box-shadow: 0 0 0 0 rgba(151,49,49,0.5); }
-  70%  { box-shadow: 0 0 0 14px rgba(151,49,49,0); }
-  100% { box-shadow: 0 0 0 0 rgba(151,49,49,0); }
+  0%   { box-shadow: 0 0 0 0 rgba(20,53,30,0.5); }
+  70%  { box-shadow: 0 0 0 14px rgba(20,53,30,0); }
+  100% { box-shadow: 0 0 0 0 rgba(20,53,30,0); }
 }
 
 #odheyati-salla-chat-launcher:hover::after {
@@ -54,7 +54,7 @@
   display: none;
   flex-direction: column;
   box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-  background: #973131;
+  background: #14351e;
 }
 
 #odheyati-salla-chat-window.open {
@@ -62,7 +62,7 @@
 }
 
 #odheyati-salla-chat-header {
-  background: #973131;
+  background: #14351e;
   color: #fff;
   padding: 12px 16px;
   display: flex;
@@ -87,7 +87,7 @@
   flex: 1;
   width: 100%;
   border: none;
-  background: #fff8f2;
+  background: #f9f1e1;
 }
 
 @media (max-width: 640px) {

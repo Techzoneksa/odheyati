@@ -471,7 +471,7 @@ export default function ChatWidget({ embedded = false }: { embedded?: boolean } 
                     target="_blank"
                     rel="noopener noreferrer"
                     className="chat-btn"
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#dca47c', color: '#fff', border: 'none', marginTop: 6 }}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#d5b474', color: '#fff', border: 'none', marginTop: 6 }}
                   >
                     {msg.linkLabel}
                   </a>

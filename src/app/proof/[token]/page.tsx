@@ -118,7 +118,7 @@ function ErrorDisplay({ message, token, errorDetails }: { message: string; token
     <main className="min-h-screen px-4 py-8">
       <div className="max-w-2xl mx-auto">
         <div className="text-center mb-8">
-          <img src="/logo.png" alt="أضحيتي" width={180} height={60} className="mx-auto mb-4" />
+          <img src="/logo.png" alt="أضحيتي" width={205} height={60} className="mx-auto mb-4" />
           <p className="text-lg text-text-secondary">توثيقات أضحيتي</p>
         </div>
         <div className="card p-6 text-center">
@@ -261,7 +261,7 @@ export default function ProofPage({ params }: Props) {
     <main className="min-h-screen px-4 py-8">
       <div className="max-w-2xl mx-auto">
         <div className="text-center mb-8">
-          <img src="/logo.png" alt="أضحيتي" width={180} height={60} className="mx-auto mb-4" />
+          <img src="/logo.png" alt="أضحيتي" width={205} height={60} className="mx-auto mb-4" />
           <p className="text-lg text-text-secondary">توثيقات أضحيتي</p>
         </div>
 
